@@ -1,5 +1,7 @@
 const DAY = 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "our-pregnancy-profile";
+const FIXED_LMP_DATE = "2026-05-23";
+const FIXED_REGION = "경기도 고양시 덕양구";
 const DONE_KEY = "our-pregnancy-done";
 const UPDATE_KEY = "our-pregnancy-update-state";
 const { tasks, verifiedDate, verificationLabels } = window.PREGNANCY_DATA;
@@ -24,10 +26,9 @@ const phaseLabels = {
 
 const phaseOrder = Object.keys(phaseLabels);
 
-const profileForm = document.querySelector("#profileForm");
-const lmpDateInput = document.querySelector("#lmpDateInput");
-const dueDateInput = document.querySelector("#dueDateInput");
-const regionInput = document.querySelector("#regionInput");
+const fixedLmpText = document.querySelector("#fixedLmpText");
+const fixedDueText = document.querySelector("#fixedDueText");
+const fixedRegionText = document.querySelector("#fixedRegionText");
 const resetButton = document.querySelector("#resetButton");
 const categoryFilter = document.querySelector("#categoryFilter");
 const statusFilter = document.querySelector("#statusFilter");
@@ -52,10 +53,9 @@ const currentSpotlightDetail = document.querySelector("#currentSpotlightDetail")
 const currentSpotlightList = document.querySelector("#currentSpotlightList");
 const focusCurrentButton = document.querySelector("#focusCurrentButton");
 
-let profile = loadJson(STORAGE_KEY, {});
+let profile = createFixedProfile();
 let done = loadJson(DONE_KEY, []);
 let updateState = loadJson(UPDATE_KEY, {});
-let isSyncingDates = false;
 
 function loadJson(key, fallback) {
   try {
@@ -65,17 +65,25 @@ function loadJson(key, fallback) {
   }
 }
 
-function saveProfile() {
-  profile = {
-    lmpDate: lmpDateInput.value,
-    dueDate: dueDateInput.value,
-    region: regionInput.value.trim(),
+function createFixedProfile() {
+  const lmp = parseISODate(FIXED_LMP_DATE);
+  return {
+    lmpDate: FIXED_LMP_DATE,
+    dueDate: formatISODate(addDays(lmp, 280)),
+    region: FIXED_REGION,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
 }
 
 function saveUpdateState() {
   localStorage.setItem(UPDATE_KEY, JSON.stringify(updateState));
+}
+
+function clearLegacyProfileStorage() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore storage access issues and keep the fixed profile active in memory.
+  }
 }
 
 function getPregnancyWeek(dueDate) {
@@ -114,18 +122,6 @@ function parseISODate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function syncDueFromLmp() {
-  const lmp = parseISODate(lmpDateInput.value);
-  if (!lmp) return;
-  dueDateInput.value = formatISODate(addDays(lmp, 280));
-}
-
-function syncLmpFromDue() {
-  const due = parseISODate(dueDateInput.value);
-  if (!due) return;
-  lmpDateInput.value = formatISODate(addDays(due, -280));
-}
-
 function formatDate(date) {
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
@@ -151,6 +147,12 @@ function isNewBenefit(task) {
 
 function getNewBenefits() {
   return sortByPriority(tasks.filter(isNewBenefit));
+}
+
+function renderProfileSummary() {
+  fixedLmpText.textContent = formatShortDate(profile.lmpDate);
+  fixedDueText.textContent = formatShortDate(profile.dueDate);
+  fixedRegionText.textContent = profile.region;
 }
 
 function renderUpdates() {
@@ -392,54 +394,16 @@ function matchesTiming(task, pregnancy, selectedTiming) {
   return true;
 }
 
-function hydrateForm() {
-  lmpDateInput.value = profile.lmpDate ?? "";
-  dueDateInput.value = profile.dueDate ?? "";
-  regionInput.value = profile.region ?? "";
-
-  if (!lmpDateInput.value && dueDateInput.value) {
-    syncLmpFromDue();
-  }
-  if (!dueDateInput.value && lmpDateInput.value) {
-    syncDueFromLmp();
-  }
-}
-
 function render() {
-  hydrateForm();
+  profile = createFixedProfile();
+  renderProfileSummary();
   renderUpdates();
   renderSummary();
   renderTimeline();
 }
 
-profileForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  saveProfile();
-  render();
-});
-
-lmpDateInput.addEventListener("input", () => {
-  if (isSyncingDates) return;
-  isSyncingDates = true;
-  syncDueFromLmp();
-  saveProfile();
-  render();
-  isSyncingDates = false;
-});
-
-dueDateInput.addEventListener("input", () => {
-  if (isSyncingDates) return;
-  isSyncingDates = true;
-  syncLmpFromDue();
-  saveProfile();
-  render();
-  isSyncingDates = false;
-});
-
 resetButton.addEventListener("click", () => {
-  profile = {};
   done = [];
-  localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(DONE_KEY);
   render();
 });
@@ -462,4 +426,5 @@ updateRefreshButton.addEventListener("click", () => {
   window.location.reload();
 });
 
+clearLegacyProfileStorage();
 render();
