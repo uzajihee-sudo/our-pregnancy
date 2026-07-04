@@ -48,6 +48,11 @@ const newBenefitsCount = document.querySelector("#newBenefitsCount");
 const updateStatusText = document.querySelector("#updateStatusText");
 const updateRefreshButton = document.querySelector("#updateRefreshButton");
 const newBenefitsList = document.querySelector("#newBenefitsList");
+const localBenefitsTitle = document.querySelector("#localBenefitsTitle");
+const localBenefitsSummary = document.querySelector("#localBenefitsSummary");
+const localBenefitsDetail = document.querySelector("#localBenefitsDetail");
+const localBenefitsList = document.querySelector("#localBenefitsList");
+const localFocusButton = document.querySelector("#localFocusButton");
 const currentSpotlightTitle = document.querySelector("#currentSpotlightTitle");
 const currentSpotlightDetail = document.querySelector("#currentSpotlightDetail");
 const currentSpotlightList = document.querySelector("#currentSpotlightList");
@@ -56,6 +61,7 @@ const focusCurrentButton = document.querySelector("#focusCurrentButton");
 let profile = createFixedProfile();
 let done = loadJson(DONE_KEY, []);
 let updateState = loadJson(UPDATE_KEY, {});
+let showLocalOnly = false;
 
 function loadJson(key, fallback) {
   try {
@@ -149,6 +155,10 @@ function getNewBenefits() {
   return sortByPriority(tasks.filter(isNewBenefit));
 }
 
+function getLocalBenefits() {
+  return tasks.filter((task) => task.local);
+}
+
 function renderProfileSummary() {
   fixedLmpText.textContent = formatShortDate(profile.lmpDate);
   fixedDueText.textContent = formatShortDate(profile.dueDate);
@@ -174,6 +184,41 @@ function renderUpdates() {
     newBenefits.length > 0
       ? newBenefits.map(renderNewBenefitItem).join("")
       : '<div class="empty-state compact">이번 업데이트에서 새로 추가된 혜택이 없습니다.</div>';
+}
+
+function renderLocalBenefits() {
+  const pregnancy = getPregnancyWeek(profile.dueDate);
+  const localTasks = getLocalBenefits().sort((a, b) => {
+    const aDone = done.includes(a.id);
+    const bDone = done.includes(b.id);
+    if (aDone !== bDone) return aDone ? 1 : -1;
+
+    const aCurrent = isCurrentTask(a, pregnancy);
+    const bCurrent = isCurrentTask(b, pregnancy);
+    if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+
+    const verificationDelta = getVerificationRank(a) - getVerificationRank(b);
+    if (verificationDelta !== 0) return verificationDelta;
+    return a.from - b.from;
+  });
+  const currentLocalCount = pregnancy
+    ? localTasks.filter((task) => isCurrentTask(task, pregnancy) && !done.includes(task.id)).length
+    : 0;
+  const upcomingLocalCount = pregnancy
+    ? localTasks.filter((task) => pregnancy.week < task.from && !done.includes(task.id)).length
+    : 0;
+
+  localBenefitsTitle.textContent = `${profile.region} 기준 지역 혜택`;
+  localBenefitsSummary.textContent = `${localTasks.length}개 지역 항목을 따로 모았습니다.`;
+  localBenefitsDetail.textContent =
+    currentLocalCount > 0
+      ? `지금 확인할 항목 ${currentLocalCount}개, 앞으로 확인할 항목 ${upcomingLocalCount}개입니다. 보건소와 지자체 페이지를 우선 확인하세요.`
+      : "현재 주차에 바로 해당하는 지역 항목은 없고, 다음 단계 혜택만 미리 확인하면 됩니다.";
+  localFocusButton.textContent = showLocalOnly ? "전체 항목 보기" : "지역 항목만 보기";
+  localBenefitsList.innerHTML =
+    localTasks.length > 0
+      ? localTasks.map((task) => renderLocalBenefitItem(task, pregnancy)).join("")
+      : '<div class="empty-state compact">묶어서 보여줄 지역 항목이 없습니다.</div>';
 }
 
 function renderSummary() {
@@ -256,6 +301,47 @@ function renderCurrentSpotlightItem(task, rank) {
   `;
 }
 
+function renderLocalBenefitItem(task, pregnancy) {
+  const verification = task.verification ?? "video";
+  const verificationLabel = verificationLabels[verification] ?? "상태 미정";
+  const categoryLabel = categoryLabels[task.category] ?? "기타";
+  const statusLabel = getTaskStatusLabel(task, pregnancy);
+  const isDone = done.includes(task.id);
+  return `
+    <article class="current-spotlight-item local-benefit-item${isDone ? " is-done" : ""}">
+      <div class="current-spotlight-item__rank">지역 혜택</div>
+      <div class="current-spotlight-item__title">${task.title}</div>
+      <p class="new-benefit-item__body">${task.body}</p>
+      <div class="current-spotlight-item__meta">
+        <span class="pill">${task.from}-${task.to}주</span>
+        <span class="pill local">${profile.region}</span>
+        <span class="pill ${task.category === "official" ? "official" : ""}">${categoryLabel}</span>
+        <span class="pill verify ${verification}">${verificationLabel}</span>
+        <span class="pill state ${statusLabel.className}">${statusLabel.text}</span>
+        ${isDone ? '<span class="pill done">체크 완료</span>' : ""}
+      </div>
+      ${task.href ? `<a class="task-link local-benefit-link" href="${task.href}" target="_blank" rel="noreferrer">바로 확인</a>` : ""}
+    </article>
+  `;
+}
+
+function getTaskStatusLabel(task, pregnancy) {
+  if (!pregnancy) {
+    return { text: "시점 계산 대기", className: "upcoming" };
+  }
+  if (pregnancy.week >= task.from && pregnancy.week <= task.to) {
+    return { text: "지금 확인", className: "current" };
+  }
+  if (pregnancy.week < task.from) {
+    return { text: "곧 확인", className: "upcoming" };
+  }
+  return { text: "기한 지남", className: "past" };
+}
+
+function isCurrentTask(task, pregnancy) {
+  return Boolean(pregnancy && pregnancy.week >= task.from && pregnancy.week <= task.to);
+}
+
 function countTasks(pregnancy, mode) {
   if (!pregnancy) return 0;
   if (mode === "current") {
@@ -272,6 +358,14 @@ function getCountLabel(count) {
 }
 
 function sortByPriority(items) {
+  return [...items].sort((a, b) => {
+    const verificationDelta = getVerificationRank(a) - getVerificationRank(b);
+    if (verificationDelta !== 0) return verificationDelta;
+    return a.from - b.from;
+  });
+}
+
+function getVerificationRank(task) {
   const verificationRank = {
     official: 0,
     partial: 1,
@@ -279,14 +373,7 @@ function sortByPriority(items) {
     needs_check: 3,
     general: 4,
   };
-
-  return [...items].sort((a, b) => {
-    const verificationDelta =
-      (verificationRank[a.verification ?? "video"] ?? 9) -
-      (verificationRank[b.verification ?? "video"] ?? 9);
-    if (verificationDelta !== 0) return verificationDelta;
-    return a.from - b.from;
-  });
+  return verificationRank[task.verification ?? "video"] ?? 9;
 }
 
 function renderTimeline() {
@@ -297,6 +384,7 @@ function renderTimeline() {
   const selectedTiming = timingFilter.value;
 
   const visibleTasks = tasks
+    .filter((task) => !showLocalOnly || task.local)
     .filter((task) => selectedCategory === "all" || task.category === selectedCategory)
     .filter(
       (task) => selectedVerification === "all" || task.verification === selectedVerification,
@@ -346,6 +434,7 @@ function renderTimeline() {
         <p>${task.body}</p>
         <div class="meta-row">
           <span class="pill">${task.from}-${task.to}주</span>
+          ${task.local ? '<span class="pill local">지역 혜택</span>' : ""}
           <span class="pill ${task.category === "official" ? "official" : ""}">${categoryLabels[task.category]}</span>
           <span class="pill verify ${verification}">${verificationLabel}</span>
           ${isNewBenefit(task) ? '<span class="pill new">새 혜택</span>' : ""}
@@ -398,6 +487,7 @@ function render() {
   profile = createFixedProfile();
   renderProfileSummary();
   renderUpdates();
+  renderLocalBenefits();
   renderSummary();
   renderTimeline();
 }
@@ -412,7 +502,14 @@ categoryFilter.addEventListener("change", renderTimeline);
 statusFilter.addEventListener("change", renderTimeline);
 verificationFilter.addEventListener("change", renderTimeline);
 timingFilter.addEventListener("change", renderTimeline);
+localFocusButton.addEventListener("click", () => {
+  showLocalOnly = !showLocalOnly;
+  renderLocalBenefits();
+  renderTimeline();
+});
 focusCurrentButton.addEventListener("click", () => {
+  showLocalOnly = false;
+  renderLocalBenefits();
   timingFilter.value = "current";
   renderTimeline();
 });
