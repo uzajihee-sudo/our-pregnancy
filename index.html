@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>우리 임신 타임라인</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="top-band">
+        <div class="top-copy">
+          <p class="eyebrow">Pregnancy timeline assistant</p>
+          <h1>우리 임신 타임라인</h1>
+          <p class="lead">
+            출산예정일을 기준으로 지금 해야 할 일, 놓치기 쉬운 신청, 확인이 필요한 혜택을 한 화면에서 정리합니다.
+          </p>
+        </div>
+
+        <form class="profile-panel" id="profileForm">
+          <label>
+            마지막 생리 시작일
+            <input id="lmpDateInput" type="date" />
+          </label>
+          <label>
+            출산예정일
+            <input id="dueDateInput" type="date" />
+          </label>
+          <label>
+            거주지역
+            <input id="regionInput" type="text" placeholder="예: 서울시 마포구" />
+          </label>
+          <div class="form-actions">
+            <button type="submit">저장</button>
+            <button type="button" class="secondary" id="resetButton">초기화</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="status-grid" aria-label="임신 상태 요약">
+        <article>
+          <span>오늘 기준</span>
+          <strong id="todayText">-</strong>
+        </article>
+        <article>
+          <span>현재 주차</span>
+          <strong id="weekText">예정일 입력 필요</strong>
+        </article>
+        <article>
+          <span>D-day</span>
+          <strong id="ddayText">-</strong>
+        </article>
+        <article>
+          <span>이번 주 핵심</span>
+          <strong id="focusText">프로필을 저장하세요</strong>
+        </article>
+      </section>
+
+      <section class="summary-strip" aria-label="할 일 요약">
+        <article>
+          <span>지금 해당</span>
+          <strong id="currentCount">-</strong>
+        </article>
+        <article>
+          <span>앞으로 할 일</span>
+          <strong id="upcomingCount">-</strong>
+        </article>
+        <article>
+          <span>확인 필요</span>
+          <strong id="needsCheckCount">-</strong>
+        </article>
+      </section>
+
+      <section class="update-panel" aria-label="업데이트 확인">
+        <div class="section-heading">
+          <p>Updates</p>
+          <h2>업데이트 확인</h2>
+        </div>
+        <div class="update-panel-body">
+          <div class="update-panel-status">
+            <div class="update-metric">
+              <span>마지막 업데이트</span>
+              <strong id="updateDateText">-</strong>
+            </div>
+            <div class="update-metric">
+              <span>이번 업데이트 신규 혜택</span>
+              <strong id="newBenefitsCount">-</strong>
+            </div>
+          </div>
+          <div class="update-panel-actions">
+            <p id="updateStatusText">최신 배포본과 새로 들어온 혜택을 확인합니다.</p>
+            <button type="button" class="secondary" id="updateRefreshButton">업데이트 확인</button>
+          </div>
+        </div>
+        <div class="new-benefits">
+          <div class="new-benefits-head">
+            <strong>이번 업데이트에 새로 들어온 혜택</strong>
+          </div>
+          <div class="current-spotlight-list" id="newBenefitsList"></div>
+        </div>
+      </section>
+
+      <section class="current-spotlight" aria-label="지금 해야 할 일">
+        <div class="section-heading">
+          <p>Now</p>
+          <h2>지금 해야 할 일</h2>
+        </div>
+        <div class="current-spotlight-body">
+          <div class="current-spotlight-copy">
+            <strong id="currentSpotlightTitle">예정일을 입력하면 지금 해야 할 일을 보여줍니다.</strong>
+            <p id="currentSpotlightDetail">현재 주차에 맞는 항목을 위로 끌어올려 바로 확인할 수 있습니다.</p>
+          </div>
+          <button type="button" class="secondary" id="focusCurrentButton">현재 항목만 보기</button>
+        </div>
+        <div class="current-spotlight-list" id="currentSpotlightList"></div>
+      </section>
+
+      <section class="workspace">
+        <aside class="side-panel">
+          <div class="section-heading">
+            <p>필터</p>
+            <h2>보기 설정</h2>
+          </div>
+          <div class="control-group">
+            <label>
+              구분
+              <select id="categoryFilter">
+                <option value="all">전체</option>
+                <option value="official">공식 지원</option>
+                <option value="hospital">병원/건강</option>
+                <option value="booking">예약</option>
+                <option value="finance">보험/비용</option>
+                <option value="personal">개인 준비</option>
+              </select>
+            </label>
+            <label>
+              상태
+              <select id="statusFilter">
+                <option value="all">전체</option>
+                <option value="open">진행 전</option>
+                <option value="done">완료</option>
+              </select>
+            </label>
+            <label>
+              검증
+              <select id="verificationFilter">
+                <option value="all">전체</option>
+                <option value="official">공식 확인</option>
+                <option value="partial">일부 공식 확인</option>
+                <option value="video">영상 기반</option>
+                <option value="needs_check">확인 필요</option>
+                <option value="general">일반 준비</option>
+              </select>
+            </label>
+            <label>
+              시점
+              <select id="timingFilter">
+                <option value="all">전체</option>
+                <option value="current">지금 해당</option>
+                <option value="upcoming">앞으로 할 일</option>
+                <option value="past">지난 항목</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="source-box">
+            <h3>출처 메모</h3>
+            <p>
+              각 항목은 공식 확인, 일부 공식 확인, 영상 기반, 확인 필요 상태로 구분됩니다.
+              금액과 적용 조건이 바뀔 수 있는 항목은 공식 링크와 마지막 검증일을 함께 확인하세요.
+            </p>
+            <a href="https://www.gov.kr/portal/onestopSvc/fertility" target="_blank" rel="noreferrer">정부24 맘편한 임신</a>
+          </div>
+        </aside>
+
+        <section class="timeline-area">
+          <div class="section-heading">
+            <p>Timeline</p>
+            <h2>주차별 체크리스트</h2>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
