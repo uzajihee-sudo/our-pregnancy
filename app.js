@@ -3,7 +3,11 @@ const STORAGE_KEY = "our-pregnancy-profile";
 const FIXED_LMP_DATE = "2026-05-23";
 const FIXED_REGION = "경기도 고양시 덕양구";
 const DONE_KEY = "our-pregnancy-done";
+const PENDING_KEY = "our-pregnancy-sync-pending";
 const UPDATE_KEY = "our-pregnancy-update-state";
+const DEVICE_KEY = "our-pregnancy-device-id";
+const SHARED_SYNC_ENDPOINT = "/api/shared-checklist";
+const SHARED_SYNC_POLL_MS = 30000;
 const { tasks, verifiedDate, verificationLabels } = window.PREGNANCY_DATA;
 
 const categoryLabels = {
@@ -43,6 +47,10 @@ const focusText = document.querySelector("#focusText");
 const currentCount = document.querySelector("#currentCount");
 const upcomingCount = document.querySelector("#upcomingCount");
 const needsCheckCount = document.querySelector("#needsCheckCount");
+const syncStatusText = document.querySelector("#syncStatusText");
+const syncPendingCount = document.querySelector("#syncPendingCount");
+const syncMetaText = document.querySelector("#syncMetaText");
+const syncNowButton = document.querySelector("#syncNowButton");
 const updateDateText = document.querySelector("#updateDateText");
 const newBenefitsCount = document.querySelector("#newBenefitsCount");
 const updateStatusText = document.querySelector("#updateStatusText");
@@ -59,9 +67,21 @@ const currentSpotlightList = document.querySelector("#currentSpotlightList");
 const focusCurrentButton = document.querySelector("#focusCurrentButton");
 
 let profile = createFixedProfile();
-let done = loadJson(DONE_KEY, []);
+let done = normalizeDoneIds(loadJson(DONE_KEY, []));
+let pendingOps = normalizePendingOperations(loadJson(PENDING_KEY, []));
 let updateState = loadJson(UPDATE_KEY, {});
 let showLocalOnly = false;
+let syncJob = Promise.resolve();
+let syncIntervalId = null;
+const deviceId = getOrCreateDeviceId();
+const sharedSync = {
+  mode: "connecting",
+  isBusy: false,
+  lastSyncedAt: null,
+  lastRemoteUpdatedAt: null,
+  etag: "",
+  error: "",
+};
 
 function loadJson(key, fallback) {
   try {
@@ -69,6 +89,61 @@ function loadJson(key, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function saveJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage errors and keep the in-memory state usable.
+  }
+}
+
+function loadString(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveString(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage errors and keep the in-memory state usable.
+  }
+}
+
+function normalizeDoneIds(value) {
+  return Array.isArray(value)
+    ? [...new Set(value.filter((item) => typeof item === "string"))]
+    : [];
+}
+
+function normalizePendingOperations(value) {
+  if (!Array.isArray(value)) return [];
+
+  const fallbackDeviceId = getOrCreateDeviceId();
+
+  return value
+    .filter((item) => item && typeof item === "object")
+    .filter(
+      (item) =>
+        item.type === "reset" ||
+        (item.type === "set" && typeof item.taskId === "string" && typeof item.checked === "boolean"),
+    )
+    .map((item) => ({
+      ...item,
+      deviceId:
+        typeof item.deviceId === "string" && item.deviceId.trim()
+          ? item.deviceId
+          : fallbackDeviceId,
+      queuedAt:
+        typeof item.queuedAt === "string" && item.queuedAt.trim()
+          ? item.queuedAt
+          : new Date().toISOString(),
+    }));
 }
 
 function createFixedProfile() {
@@ -81,7 +156,25 @@ function createFixedProfile() {
 }
 
 function saveUpdateState() {
-  localStorage.setItem(UPDATE_KEY, JSON.stringify(updateState));
+  saveJson(UPDATE_KEY, updateState);
+}
+
+function saveDoneCache() {
+  saveJson(DONE_KEY, done);
+}
+
+function savePendingOps() {
+  saveJson(PENDING_KEY, pendingOps);
+}
+
+function getOrCreateDeviceId() {
+  const existing = loadString(DEVICE_KEY);
+  if (existing) return existing;
+  const created =
+    globalThis.crypto?.randomUUID?.() ??
+    `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  saveString(DEVICE_KEY, created);
+  return created;
 }
 
 function clearLegacyProfileStorage() {
@@ -90,6 +183,28 @@ function clearLegacyProfileStorage() {
   } catch {
     // Ignore storage access issues and keep the fixed profile active in memory.
   }
+}
+
+function setDone(nextDone) {
+  done = normalizeDoneIds(nextDone);
+  saveDoneCache();
+}
+
+function enqueuePendingOperation(operation) {
+  pendingOps = [
+    ...pendingOps,
+    {
+      ...operation,
+      queuedAt: new Date().toISOString(),
+      deviceId,
+    },
+  ];
+  savePendingOps();
+}
+
+function consumePendingOperation() {
+  pendingOps = pendingOps.slice(1);
+  savePendingOps();
 }
 
 function getPregnancyWeek(dueDate) {
@@ -147,6 +262,18 @@ function formatShortDate(value) {
   }).format(parsed);
 }
 
+function formatDateTime(value) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function isNewBenefit(task) {
   return task.introducedAt === verifiedDate;
 }
@@ -163,6 +290,52 @@ function renderProfileSummary() {
   fixedLmpText.textContent = formatShortDate(profile.lmpDate);
   fixedDueText.textContent = formatShortDate(profile.dueDate);
   fixedRegionText.textContent = profile.region;
+}
+
+function renderSharedSync() {
+  syncPendingCount.textContent = pendingOps.length ? `${pendingOps.length}건` : "0건";
+  syncNowButton.disabled = sharedSync.isBusy;
+  syncNowButton.textContent =
+    pendingOps.length > 0 ? "지금 업로드" : sharedSync.isBusy ? "동기화 중" : "지금 동기화";
+
+  if (sharedSync.isBusy) {
+    syncStatusText.textContent = pendingOps.length > 0 ? "업로드 중" : "동기화 중";
+  } else if (sharedSync.mode === "ready") {
+    syncStatusText.textContent = "공유 사용 중";
+  } else if (sharedSync.mode === "not_configured") {
+    syncStatusText.textContent = "공유 미설정";
+  } else if (sharedSync.mode === "retry") {
+    syncStatusText.textContent = "재시도 필요";
+  } else if (sharedSync.mode === "local_only") {
+    syncStatusText.textContent = "브라우저 임시 저장";
+  } else {
+    syncStatusText.textContent = "연결 중";
+  }
+
+  const parts = [];
+  if (pendingOps.length > 0) {
+    parts.push(`${pendingOps.length}건 변경이 아직 서버 반영 전입니다.`);
+  } else if (sharedSync.lastRemoteUpdatedAt) {
+    parts.push(`마지막 반영 ${formatDateTime(sharedSync.lastRemoteUpdatedAt)}`);
+  } else if (sharedSync.lastSyncedAt) {
+    parts.push(`마지막 확인 ${formatDateTime(sharedSync.lastSyncedAt)}`);
+  } else {
+    parts.push("두 분이 같은 체크 상태를 보도록 서버와 연결합니다.");
+  }
+
+  if (sharedSync.mode === "not_configured") {
+    parts.push("공유 저장소가 아직 연결되지 않아 현재는 이 브라우저에만 저장됩니다.");
+  } else if (sharedSync.mode === "local_only") {
+    parts.push("연결이 복구되면 다시 동기화할 수 있습니다.");
+  } else if (sharedSync.mode === "retry") {
+    parts.push("버튼을 눌러 대기 중 변경을 다시 올리세요.");
+  }
+
+  if (sharedSync.error) {
+    parts.push(sharedSync.error);
+  }
+
+  syncMetaText.textContent = parts.join(" ");
 }
 
 function renderUpdates() {
@@ -184,6 +357,134 @@ function renderUpdates() {
     newBenefits.length > 0
       ? newBenefits.map(renderNewBenefitItem).join("")
       : '<div class="empty-state compact">이번 업데이트에서 새로 추가된 혜택이 없습니다.</div>';
+}
+
+function applyRemoteChecklistState(payload) {
+  setDone(Array.isArray(payload.doneIds) ? payload.doneIds : []);
+  sharedSync.lastRemoteUpdatedAt = payload.updatedAt ?? null;
+  sharedSync.lastSyncedAt = new Date().toISOString();
+  sharedSync.etag = payload.etag ?? sharedSync.etag;
+  sharedSync.error = "";
+  sharedSync.mode = "ready";
+}
+
+async function parseSyncResponse(response) {
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+
+  if (response.ok) {
+    return payload;
+  }
+
+  const message = payload.message ?? payload.error ?? "공유 체크 동기화에 실패했습니다.";
+  const error = new Error(message);
+  error.status = response.status;
+  error.code = payload.error ?? "";
+  throw error;
+}
+
+async function fetchRemoteChecklist() {
+  const headers = {
+    "cache-control": "no-store",
+  };
+  if (sharedSync.etag) {
+    headers["if-none-match"] = sharedSync.etag;
+  }
+
+  const response = await fetch(SHARED_SYNC_ENDPOINT, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (response.status === 304) {
+    sharedSync.lastSyncedAt = new Date().toISOString();
+    sharedSync.error = "";
+    sharedSync.mode = "ready";
+    return;
+  }
+
+  const payload = await parseSyncResponse(response);
+  sharedSync.etag = response.headers.get("etag") ?? payload.etag ?? sharedSync.etag;
+  applyRemoteChecklistState(payload);
+}
+
+async function sendChecklistOperation(operation, options = {}) {
+  const response = await fetch(SHARED_SYNC_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+    cache: "no-store",
+    body: JSON.stringify(operation),
+  });
+
+  const payload = await parseSyncResponse(response);
+  sharedSync.etag = response.headers.get("etag") ?? payload.etag ?? sharedSync.etag;
+  if (options.applyState !== false) {
+    applyRemoteChecklistState(payload);
+  } else {
+    sharedSync.lastRemoteUpdatedAt = payload.updatedAt ?? sharedSync.lastRemoteUpdatedAt;
+    sharedSync.lastSyncedAt = new Date().toISOString();
+    sharedSync.error = "";
+    sharedSync.mode = "ready";
+  }
+
+  return payload;
+}
+
+async function flushPendingOperations() {
+  while (pendingOps.length > 0) {
+    const [nextOperation] = pendingOps;
+    await sendChecklistOperation(nextOperation, {
+      applyState: false,
+    });
+    consumePendingOperation();
+  }
+}
+
+async function performSharedSync() {
+  sharedSync.isBusy = true;
+  renderSharedSync();
+
+  try {
+    if (pendingOps.length > 0) {
+      await flushPendingOperations();
+    } else {
+      await fetchRemoteChecklist();
+    }
+  } catch (error) {
+    sharedSync.error = error.message;
+    sharedSync.mode = error.code === "sync_not_configured" ? "not_configured" : pendingOps.length > 0 ? "retry" : "local_only";
+  } finally {
+    sharedSync.isBusy = false;
+    render();
+  }
+}
+
+function queueSharedSync() {
+  syncJob = syncJob
+    .catch(() => {})
+    .then(() => performSharedSync());
+  return syncJob;
+}
+
+function startSharedSyncLoop() {
+  if (syncIntervalId) return;
+  syncIntervalId = window.setInterval(() => {
+    void queueSharedSync();
+  }, SHARED_SYNC_POLL_MS);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      void queueSharedSync();
+    }
+  });
 }
 
 function renderLocalBenefits() {
@@ -447,11 +748,18 @@ function renderTimeline() {
     `;
 
     item.querySelector("input").addEventListener("change", (event) => {
-      done = event.target.checked
+      setDone(
+        event.target.checked
         ? [...new Set([...done, task.id])]
-        : done.filter((id) => id !== task.id);
-      localStorage.setItem(DONE_KEY, JSON.stringify(done));
+        : done.filter((id) => id !== task.id),
+      );
+      enqueuePendingOperation({
+        type: "set",
+        taskId: task.id,
+        checked: event.target.checked,
+      });
       render();
+      void queueSharedSync();
     });
 
     timeline.appendChild(item);
@@ -486,6 +794,7 @@ function matchesTiming(task, pregnancy, selectedTiming) {
 function render() {
   profile = createFixedProfile();
   renderProfileSummary();
+  renderSharedSync();
   renderUpdates();
   renderLocalBenefits();
   renderSummary();
@@ -493,15 +802,24 @@ function render() {
 }
 
 resetButton.addEventListener("click", () => {
-  done = [];
-  localStorage.removeItem(DONE_KEY);
+  const shouldReset = window.confirm("공유 체크 상태를 모두 초기화할까요? 다른 기기에도 같이 반영됩니다.");
+  if (!shouldReset) return;
+
+  setDone([]);
+  enqueuePendingOperation({
+    type: "reset",
+  });
   render();
+  void queueSharedSync();
 });
 
 categoryFilter.addEventListener("change", renderTimeline);
 statusFilter.addEventListener("change", renderTimeline);
 verificationFilter.addEventListener("change", renderTimeline);
 timingFilter.addEventListener("change", renderTimeline);
+syncNowButton.addEventListener("click", () => {
+  void queueSharedSync();
+});
 localFocusButton.addEventListener("click", () => {
   showLocalOnly = !showLocalOnly;
   renderLocalBenefits();
@@ -525,3 +843,5 @@ updateRefreshButton.addEventListener("click", () => {
 
 clearLegacyProfileStorage();
 render();
+startSharedSyncLoop();
+void queueSharedSync();

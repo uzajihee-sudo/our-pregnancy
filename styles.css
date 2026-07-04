@@ -268,6 +268,13 @@ button.secondary {
   background: #fff;
 }
 
+.sync-panel {
+  margin-bottom: 18px;
+  padding: 20px 22px 22px;
+  border: 1px solid rgba(105, 123, 95, 0.22);
+  background: #fcfdf9;
+}
+
 .local-benefits-panel {
   margin-bottom: 18px;
   padding: 20px 22px 22px;
@@ -279,11 +286,22 @@ button.secondary {
   margin-bottom: 14px;
 }
 
+.sync-panel .section-heading {
+  margin-bottom: 14px;
+}
+
 .local-benefits-panel .section-heading {
   margin-bottom: 14px;
 }
 
 .update-panel-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.sync-panel-body {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
   gap: 16px;
@@ -322,7 +340,18 @@ button.secondary {
   gap: 12px;
 }
 
+.sync-panel-actions {
+  display: grid;
+  gap: 12px;
+}
+
 .update-panel-actions p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.sync-panel-actions p {
   margin-bottom: 0;
   color: var(--muted);
   line-height: 1.55;
@@ -683,6 +712,7 @@ a {
   }
 
   .update-panel-body,
+  .sync-panel-body,
   .update-panel-status {
     grid-template-columns: 1fr;
   }
@@ -708,6 +738,7 @@ a {
 
   .top-band,
   .profile-panel,
+  .sync-panel,
   .side-panel,
   .timeline-area,
   .status-grid article,

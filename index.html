@@ -40,7 +40,7 @@
             두 분이 같이 쓰는 기준으로 마지막 생리 시작일과 거주지역을 고정해 계산합니다.
           </p>
           <div class="panel-actions">
-            <button type="button" class="secondary" id="resetButton">체크 완료 초기화</button>
+            <button type="button" class="secondary" id="resetButton">공유 체크 초기화</button>
           </div>
         </section>
       </section>
@@ -77,6 +77,29 @@
           <span>확인 필요</span>
           <strong id="needsCheckCount">-</strong>
         </article>
+      </section>
+
+      <section class="sync-panel" aria-label="공유 체크 동기화">
+        <div class="section-heading">
+          <p>Sync</p>
+          <h2>공유 체크 동기화</h2>
+        </div>
+        <div class="sync-panel-body">
+          <div class="update-panel-status">
+            <div class="update-metric">
+              <span>동기화 상태</span>
+              <strong id="syncStatusText">연결 중</strong>
+            </div>
+            <div class="update-metric">
+              <span>대기 중 변경</span>
+              <strong id="syncPendingCount">0건</strong>
+            </div>
+          </div>
+          <div class="sync-panel-actions">
+            <p id="syncMetaText">두 분이 같은 체크 상태를 보도록 서버와 연결합니다.</p>
+            <button type="button" class="secondary" id="syncNowButton">지금 동기화</button>
+          </div>
+        </div>
       </section>
 
       <section class="update-panel" aria-label="업데이트 확인">
