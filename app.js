@@ -4,9 +4,11 @@ const FIXED_LMP_DATE = "2026-05-23";
 const FIXED_REGION = "경기도 고양시 덕양구";
 const DONE_KEY = "our-pregnancy-done";
 const PENDING_KEY = "our-pregnancy-sync-pending";
+const SHARE_CODE_KEY = "our-pregnancy-share-code";
 const UPDATE_KEY = "our-pregnancy-update-state";
 const DEVICE_KEY = "our-pregnancy-device-id";
 const SHARED_SYNC_ENDPOINT = "/api/shared-checklist";
+const SHARED_CODE_HEADER = "x-shared-code";
 const SHARED_SYNC_POLL_MS = 30000;
 const { tasks, verifiedDate, verificationLabels } = window.PREGNANCY_DATA;
 
@@ -51,6 +53,10 @@ const syncStatusText = document.querySelector("#syncStatusText");
 const syncPendingCount = document.querySelector("#syncPendingCount");
 const syncMetaText = document.querySelector("#syncMetaText");
 const syncNowButton = document.querySelector("#syncNowButton");
+const shareCodeInput = document.querySelector("#shareCodeInput");
+const shareCodeSaveButton = document.querySelector("#shareCodeSaveButton");
+const shareCodeClearButton = document.querySelector("#shareCodeClearButton");
+const shareCodeStatusText = document.querySelector("#shareCodeStatusText");
 const updateDateText = document.querySelector("#updateDateText");
 const newBenefitsCount = document.querySelector("#newBenefitsCount");
 const updateStatusText = document.querySelector("#updateStatusText");
@@ -70,6 +76,7 @@ let profile = createFixedProfile();
 let done = normalizeDoneIds(loadJson(DONE_KEY, []));
 let pendingOps = normalizePendingOperations(loadJson(PENDING_KEY, []));
 let updateState = loadJson(UPDATE_KEY, {});
+let sharedCode = loadString(SHARE_CODE_KEY).trim();
 let showLocalOnly = false;
 let syncJob = Promise.resolve();
 let syncIntervalId = null;
@@ -165,6 +172,20 @@ function saveDoneCache() {
 
 function savePendingOps() {
   saveJson(PENDING_KEY, pendingOps);
+}
+
+function saveSharedCode(value) {
+  sharedCode = value.trim();
+  if (sharedCode) {
+    saveString(SHARE_CODE_KEY, sharedCode);
+    return;
+  }
+
+  try {
+    localStorage.removeItem(SHARE_CODE_KEY);
+  } catch {
+    // Ignore storage errors and keep the in-memory code cleared.
+  }
 }
 
 function getOrCreateDeviceId() {
@@ -304,6 +325,8 @@ function renderSharedSync() {
     syncStatusText.textContent = "공유 사용 중";
   } else if (sharedSync.mode === "not_configured") {
     syncStatusText.textContent = "공유 미설정";
+  } else if (sharedSync.mode === "auth_required") {
+    syncStatusText.textContent = "공유 코드 필요";
   } else if (sharedSync.mode === "retry") {
     syncStatusText.textContent = "재시도 필요";
   } else if (sharedSync.mode === "local_only") {
@@ -325,6 +348,8 @@ function renderSharedSync() {
 
   if (sharedSync.mode === "not_configured") {
     parts.push("공유 저장소가 아직 연결되지 않아 현재는 이 브라우저에만 저장됩니다.");
+  } else if (sharedSync.mode === "auth_required") {
+    parts.push("공유 코드를 입력해야 동기화를 읽고 쓸 수 있습니다.");
   } else if (sharedSync.mode === "local_only") {
     parts.push("연결이 복구되면 다시 동기화할 수 있습니다.");
   } else if (sharedSync.mode === "retry") {
@@ -336,6 +361,10 @@ function renderSharedSync() {
   }
 
   syncMetaText.textContent = parts.join(" ");
+  shareCodeInput.value = sharedCode;
+  shareCodeStatusText.textContent = sharedCode
+    ? "공유 코드가 저장되어 있습니다."
+    : "공유 코드를 입력해야 서로 같은 체크 상태를 씁니다.";
 }
 
 function renderUpdates() {
@@ -391,6 +420,9 @@ async function fetchRemoteChecklist() {
   const headers = {
     "cache-control": "no-store",
   };
+  if (sharedCode) {
+    headers[SHARED_CODE_HEADER] = sharedCode;
+  }
   if (sharedSync.etag) {
     headers["if-none-match"] = sharedSync.etag;
   }
@@ -414,12 +446,17 @@ async function fetchRemoteChecklist() {
 }
 
 async function sendChecklistOperation(operation, options = {}) {
+  const headers = {
+    "content-type": "application/json",
+    "cache-control": "no-store",
+  };
+  if (sharedCode) {
+    headers[SHARED_CODE_HEADER] = sharedCode;
+  }
+
   const response = await fetch(SHARED_SYNC_ENDPOINT, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-    },
+    headers,
     cache: "no-store",
     body: JSON.stringify(operation),
   });
@@ -460,7 +497,14 @@ async function performSharedSync() {
     }
   } catch (error) {
     sharedSync.error = error.message;
-    sharedSync.mode = error.code === "sync_not_configured" ? "not_configured" : pendingOps.length > 0 ? "retry" : "local_only";
+    sharedSync.mode =
+      error.code === "sync_not_configured"
+        ? "not_configured"
+        : error.code === "sync_unauthorized"
+          ? "auth_required"
+          : pendingOps.length > 0
+            ? "retry"
+            : "local_only";
   } finally {
     sharedSync.isBusy = false;
     render();
@@ -819,6 +863,19 @@ verificationFilter.addEventListener("change", renderTimeline);
 timingFilter.addEventListener("change", renderTimeline);
 syncNowButton.addEventListener("click", () => {
   void queueSharedSync();
+});
+shareCodeSaveButton.addEventListener("click", () => {
+  saveSharedCode(shareCodeInput.value);
+  renderSharedSync();
+  void queueSharedSync();
+});
+shareCodeClearButton.addEventListener("click", () => {
+  saveSharedCode("");
+  renderSharedSync();
+});
+shareCodeInput.addEventListener("change", () => {
+  saveSharedCode(shareCodeInput.value);
+  renderSharedSync();
 });
 localFocusButton.addEventListener("click", () => {
   showLocalOnly = !showLocalOnly;

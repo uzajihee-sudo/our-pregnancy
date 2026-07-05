@@ -40,7 +40,26 @@ function normalizeState(raw) {
 }
 
 function isSyncConfigured() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+  return Boolean(
+    (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) &&
+      process.env.SHARED_CHECKLIST_CODE,
+  );
+}
+
+function isSharedCodeValid(request) {
+  const expectedCode = process.env.SHARED_CHECKLIST_CODE ?? "";
+  const providedCode = request.headers.get("x-shared-code") ?? "";
+  return Boolean(expectedCode) && providedCode === expectedCode;
+}
+
+function unauthorizedResponse() {
+  return jsonResponse(
+    {
+      error: "sync_unauthorized",
+      message: "공유 코드가 올바르지 않습니다.",
+    },
+    { status: 401 },
+  );
 }
 
 async function readSharedState(ifNoneMatch) {
@@ -150,6 +169,10 @@ export async function GET(request) {
     );
   }
 
+  if (!isSharedCodeValid(request)) {
+    return unauthorizedResponse();
+  }
+
   try {
     const result = await readSharedState(request.headers.get("if-none-match") ?? undefined);
 
@@ -194,6 +217,10 @@ export async function POST(request) {
       },
       { status: 503 },
     );
+  }
+
+  if (!isSharedCodeValid(request)) {
+    return unauthorizedResponse();
   }
 
   let body;

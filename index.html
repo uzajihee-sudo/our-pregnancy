@@ -100,6 +100,17 @@
             <button type="button" class="secondary" id="syncNowButton">지금 동기화</button>
           </div>
         </div>
+        <div class="sync-code-row">
+          <label class="sync-code-field">
+            공유 코드
+            <input id="shareCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="공유 코드 입력" />
+          </label>
+          <div class="sync-code-actions">
+            <button type="button" id="shareCodeSaveButton">저장</button>
+            <button type="button" class="secondary" id="shareCodeClearButton">지우기</button>
+          </div>
+        </div>
+        <p class="sync-code-note" id="shareCodeStatusText">공유 코드를 입력해야 서로 같은 체크 상태를 씁니다.</p>
       </section>
 
       <section class="update-panel" aria-label="업데이트 확인">

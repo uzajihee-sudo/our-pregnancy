@@ -357,6 +357,34 @@ button.secondary {
   line-height: 1.55;
 }
 
+.sync-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.sync-code-field {
+  gap: 8px;
+}
+
+.sync-code-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sync-code-actions button {
+  min-width: 96px;
+}
+
+.sync-code-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .new-benefits {
   margin-top: 16px;
 }
@@ -709,6 +737,15 @@ a {
   .local-benefits-body {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .sync-code-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sync-code-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .update-panel-body,
