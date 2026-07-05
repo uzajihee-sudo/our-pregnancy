@@ -38,6 +38,11 @@
       </section>
 
       <section class="calendar-panel">
+        <div class="view-switch" role="tablist" aria-label="일정 보기 전환">
+          <button type="button" id="calendarViewButton" class="is-active" role="tab" aria-selected="true">캘린더로 보기</button>
+          <button type="button" id="timelineViewButton" class="secondary" role="tab" aria-selected="false">타임라인으로 보기</button>
+        </div>
+        <div class="calendar-surface" id="calendarSurface">
         <div class="calendar-toolbar">
           <button type="button" class="secondary" id="calendarPrevButton">이전 달</button>
           <div class="calendar-toolbar-copy">
@@ -50,6 +55,10 @@
           <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
         <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+        <div class="timeline-surface is-hidden" id="timelineSurface">
+          <div class="timeline-list" id="timelineList"></div>
+        </div>
       </section>
 
       <section class="detail-layout">

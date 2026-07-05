@@ -20,7 +20,12 @@ const calendarRangeText = document.querySelector("#calendarRangeText");
 const calendarPrevButton = document.querySelector("#calendarPrevButton");
 const calendarNextButton = document.querySelector("#calendarNextButton");
 const calendarTodayButton = document.querySelector("#calendarTodayButton");
+const calendarViewButton = document.querySelector("#calendarViewButton");
+const timelineViewButton = document.querySelector("#timelineViewButton");
+const calendarSurface = document.querySelector("#calendarSurface");
+const timelineSurface = document.querySelector("#timelineSurface");
 const calendarGrid = document.querySelector("#calendarGrid");
+const timelineList = document.querySelector("#timelineList");
 const selectedDateText = document.querySelector("#selectedDateText");
 const selectedDateMetaText = document.querySelector("#selectedDateMetaText");
 const selectedDateList = document.querySelector("#selectedDateList");
@@ -29,6 +34,7 @@ const nextMilestoneList = document.querySelector("#nextMilestoneList");
 let settings = loadSettings();
 let selectedDate = startOfDay(new Date());
 let calendarMonthDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+let currentView = "calendar";
 
 function loadSettings() {
   try {
@@ -160,6 +166,24 @@ function getUpcomingMilestones(limit = 4) {
   return getMilestonesWithDates().filter((item) => item.date >= today).slice(0, limit);
 }
 
+function getTimelineGroups() {
+  const today = startOfDay(new Date());
+  const groups = {
+    overdue: [],
+    upcoming: [],
+  };
+
+  getMilestonesWithDates().forEach((item) => {
+    if (item.date < today) {
+      groups.overdue.push(item);
+      return;
+    }
+    groups.upcoming.push(item);
+  });
+
+  return groups;
+}
+
 function getMonthBounds(date) {
   return {
     start: new Date(date.getFullYear(), date.getMonth(), 1),
@@ -231,6 +255,57 @@ function renderCalendar() {
   });
 }
 
+function renderTimeline() {
+  if (!timelineList) return;
+
+  const groups = getTimelineGroups();
+  const sections = [
+    { key: "upcoming", title: "다가오는 신청 포인트", items: groups.upcoming.slice(0, 12) },
+    { key: "overdue", title: "지나간 포인트", items: groups.overdue.slice(-8).reverse() },
+  ];
+
+  timelineList.innerHTML = sections
+    .map((section) => {
+      if (section.items.length === 0) {
+        return `
+          <section class="timeline-group">
+            <h3>${section.title}</h3>
+            <div class="empty-state compact">표시할 항목이 없습니다.</div>
+          </section>
+        `;
+      }
+
+      return `
+        <section class="timeline-group">
+          <h3>${section.title}</h3>
+          <div class="timeline-cards">
+            ${section.items
+              .map(
+                (item) => `
+                  <button type="button" class="timeline-card${isSameDate(item.date, selectedDate) ? " is-selected" : ""}" data-date="${formatISODate(item.date)}">
+                    <span class="timeline-card__date">${formatDate(item.date)}</span>
+                    <strong>${item.shortTitle}</strong>
+                    <p>${item.summary}</p>
+                  </button>
+                `,
+              )
+              .join("")}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
+
+  timelineList.querySelectorAll(".timeline-card").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedDate = parseISODate(button.dataset.date);
+      calendarMonthDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+      renderView();
+      renderSelectedDate();
+    });
+  });
+}
+
 function renderSelectedDate() {
   if (!selectedDateText || !selectedDateMetaText || !selectedDateList) return;
 
@@ -287,6 +362,30 @@ function renderUpcomingMilestones() {
       `,
     )
     .join("");
+}
+
+function renderView() {
+  if (!calendarSurface || !timelineSurface || !calendarViewButton || !timelineViewButton) {
+    renderCalendar();
+    return;
+  }
+
+  const isCalendar = currentView === "calendar";
+  calendarSurface.classList.toggle("is-hidden", !isCalendar);
+  timelineSurface.classList.toggle("is-hidden", isCalendar);
+  calendarViewButton.classList.toggle("is-active", isCalendar);
+  calendarViewButton.classList.toggle("secondary", !isCalendar);
+  calendarViewButton.setAttribute("aria-selected", String(isCalendar));
+  timelineViewButton.classList.toggle("is-active", !isCalendar);
+  timelineViewButton.classList.toggle("secondary", isCalendar);
+  timelineViewButton.setAttribute("aria-selected", String(!isCalendar));
+
+  if (isCalendar) {
+    renderCalendar();
+    return;
+  }
+
+  renderTimeline();
 }
 
 function renderSettings() {
@@ -363,6 +462,20 @@ function initCalendarEvents() {
       renderSelectedDate();
     });
   }
+
+  if (calendarViewButton) {
+    calendarViewButton.addEventListener("click", () => {
+      currentView = "calendar";
+      renderView();
+    });
+  }
+
+  if (timelineViewButton) {
+    timelineViewButton.addEventListener("click", () => {
+      currentView = "timeline";
+      renderView();
+    });
+  }
 }
 
 function render() {
@@ -372,7 +485,7 @@ function render() {
   }
 
   renderHero();
-  renderCalendar();
+  renderView();
   renderSelectedDate();
   renderUpcomingMilestones();
 }
