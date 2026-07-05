@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>환경설정 | 우리 임신 타임라인</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="settings">
+    <main class="app-shell">
+      <header class="top-band top-band--compact">
+        <div class="top-copy">
+          <p class="eyebrow">Settings</p>
+          <h1>환경설정</h1>
+          <p class="lead">고정 기준 정보와 공유 체크 동기화 설정을 여기에서 관리합니다.</p>
+        </div>
+        <nav class="app-nav" aria-label="메인 메뉴">
+          <a class="app-nav__item" href="./index.html">대시보드</a>
+          <a class="app-nav__item" href="./checklist.html">주차별 체크리스트</a>
+          <a class="app-nav__item" href="./local-benefits.html">지역 혜택</a>
+          <a class="app-nav__item" href="./updates.html">업데이트</a>
+          <a class="app-nav__item is-active" href="./settings.html">환경설정</a>
+        </nav>
+      </header>
+
+      <section class="settings-grid">
+        <section class="profile-panel" aria-label="기준 정보">
+          <div class="fixed-profile-head">
+            <p>Timeline</p>
+            <h2>우리 임신 타임라인</h2>
+          </div>
+          <div class="fixed-profile-grid">
+            <article class="fixed-profile-item">
+              <span>마지막 생리 시작일</span>
+              <strong id="fixedLmpText">-</strong>
+            </article>
+            <article class="fixed-profile-item">
+              <span>출산예정일</span>
+              <strong id="fixedDueText">-</strong>
+            </article>
+            <article class="fixed-profile-item">
+              <span>거주지역</span>
+              <strong id="fixedRegionText">-</strong>
+            </article>
+          </div>
+          <p class="fixed-profile-note">
+            두 분이 같이 쓰는 기준으로 마지막 생리 시작일과 거주지역을 고정해 계산합니다.
+          </p>
+          <div class="panel-actions">
+            <button type="button" class="secondary" id="resetButton">공유 체크 초기화</button>
+          </div>
+        </section>
+
+        <section class="sync-panel" aria-label="공유 체크 동기화">
+          <div class="section-heading">
+            <p>Sync</p>
+            <h2>공유 체크 동기화</h2>
+          </div>
+          <div class="sync-panel-body">
+            <div class="update-panel-status">
+              <div class="update-metric">
+                <span>동기화 상태</span>
+                <strong id="syncStatusText">연결 중</strong>
+              </div>
+              <div class="update-metric">
+                <span>대기 중 변경</span>
+                <strong id="syncPendingCount">0건</strong>
+              </div>
+            </div>
+            <div class="sync-panel-actions">
+              <p id="syncMetaText">두 분이 같은 체크 상태를 보도록 서버와 연결합니다.</p>
+              <button type="button" class="secondary" id="syncNowButton">지금 동기화</button>
+            </div>
+          </div>
+          <div class="sync-code-row">
+            <label class="sync-code-field">
+              공유 코드
+              <input id="shareCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="공유 코드 입력" />
+            </label>
+            <div class="sync-code-actions">
+              <button type="button" id="shareCodeSaveButton">저장</button>
+              <button type="button" class="secondary" id="shareCodeClearButton">지우기</button>
+            </div>
+          </div>
+          <p class="sync-code-note" id="shareCodeStatusText">공유 코드를 입력해야 서로 같은 체크 상태를 씁니다.</p>
+        </section>
+      </section>
+    </main>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

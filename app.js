@@ -468,12 +468,16 @@ function getLocalBenefits() {
 }
 
 function renderProfileSummary() {
+  if (!fixedLmpText || !fixedDueText || !fixedRegionText) return;
   fixedLmpText.textContent = formatShortDate(profile.lmpDate);
   fixedDueText.textContent = formatShortDate(profile.dueDate);
   fixedRegionText.textContent = profile.region;
 }
 
 function renderSharedSync() {
+  if (!syncStatusText || !syncPendingCount || !syncNowButton || !syncMetaText || !shareCodeStatusText) {
+    return;
+  }
   syncPendingCount.textContent = pendingOps.length ? `${pendingOps.length}건` : "0건";
   syncNowButton.disabled = sharedSync.isBusy;
   syncNowButton.textContent =
@@ -521,13 +525,16 @@ function renderSharedSync() {
   }
 
   syncMetaText.textContent = parts.join(" ");
-  shareCodeInput.value = sharedCode;
+  if (shareCodeInput) {
+    shareCodeInput.value = sharedCode;
+  }
   shareCodeStatusText.textContent = sharedCode
     ? "공유 코드가 저장되어 있습니다."
     : "공유 코드를 입력해야 서로 같은 체크 상태를 씁니다.";
 }
 
 function renderUpdates() {
+  if (!updateDateText || !newBenefitsCount || !updateStatusText || !newBenefitsList) return;
   const newBenefits = getNewBenefits();
   const hasSeenCurrentVersion = updateState.lastCheckedVersion === verifiedDate;
 
@@ -692,6 +699,7 @@ function startSharedSyncLoop() {
 }
 
 function renderLocalBenefits() {
+  if (!localBenefitsTitle || !localBenefitsSummary || !localBenefitsDetail || !localBenefitsList) return;
   const pregnancy = getPregnancyWeek(profile.dueDate);
   const localTasks = getLocalBenefits().sort((a, b) => {
     const aDone = done.includes(a.id);
@@ -727,6 +735,9 @@ function renderLocalBenefits() {
 }
 
 function renderSummary() {
+  if (!todayText || !weekText || !ddayText || !focusText || !currentCount || !upcomingCount || !needsCheckCount) {
+    return;
+  }
   const pregnancy = getPregnancyWeek(profile.dueDate);
   todayText.textContent = formatDate(new Date());
   currentCount.textContent = getCountLabel(countTasks(pregnancy, "current"));
@@ -739,9 +750,11 @@ function renderSummary() {
     weekText.textContent = "예정일 입력 필요";
     ddayText.textContent = "-";
     focusText.textContent = "프로필을 저장하세요";
-    currentSpotlightTitle.textContent = "예정일을 입력하면 지금 해야 할 일을 보여줍니다.";
-    currentSpotlightDetail.textContent = "현재 주차에 맞는 항목을 위로 끌어올려 바로 확인할 수 있습니다.";
-    currentSpotlightList.innerHTML = '<div class="empty-state compact">예정일을 입력하면 현재 항목이 표시됩니다.</div>';
+    if (currentSpotlightTitle && currentSpotlightDetail && currentSpotlightList) {
+      currentSpotlightTitle.textContent = "예정일을 입력하면 지금 해야 할 일을 보여줍니다.";
+      currentSpotlightDetail.textContent = "현재 주차에 맞는 항목을 위로 끌어올려 바로 확인할 수 있습니다.";
+      currentSpotlightList.innerHTML = '<div class="empty-state compact">예정일을 입력하면 현재 항목이 표시됩니다.</div>';
+    }
     return;
   }
 
@@ -756,19 +769,21 @@ function renderSummary() {
   );
   const priorityTasks = sortByPriority(currentTasks);
   focusText.textContent = currentTasks[0]?.title ?? "이번 주 신규 항목 없음";
-  currentSpotlightTitle.textContent =
-    priorityTasks.length > 0
-      ? `${priorityTasks.length}개의 현재 항목이 있습니다`
-      : "이번 주 신규 항목이 없습니다";
-  currentSpotlightDetail.textContent =
-    priorityTasks.length > 0
-      ? "공식 확인 항목부터 순서대로 처리하세요."
-      : "지금 주차에서는 새로 시작할 항목이 없고, 다음 단계만 준비하면 됩니다.";
+  if (currentSpotlightTitle && currentSpotlightDetail && currentSpotlightList) {
+    currentSpotlightTitle.textContent =
+      priorityTasks.length > 0
+        ? `${priorityTasks.length}개의 현재 항목이 있습니다`
+        : "이번 주 신규 항목이 없습니다";
+    currentSpotlightDetail.textContent =
+      priorityTasks.length > 0
+        ? "공식 확인 항목부터 순서대로 처리하세요."
+        : "지금 주차에서는 새로 시작할 항목이 없고, 다음 단계만 준비하면 됩니다.";
 
-  currentSpotlightList.innerHTML =
-    priorityTasks.length > 0
-      ? priorityTasks.slice(0, 4).map((task, index) => renderCurrentSpotlightItem(task, index + 1)).join("")
-      : '<div class="empty-state compact">현재 주차에 해당하는 체크리스트가 없습니다.</div>';
+    currentSpotlightList.innerHTML =
+      priorityTasks.length > 0
+        ? priorityTasks.slice(0, 4).map((task, index) => renderCurrentSpotlightItem(task, index + 1)).join("")
+        : '<div class="empty-state compact">현재 주차에 해당하는 체크리스트가 없습니다.</div>';
+  }
 }
 
 function renderNewBenefitItem(task) {
@@ -1013,6 +1028,7 @@ function getListVisibleTasks() {
 }
 
 function renderTimeline() {
+  if (!timeline) return;
   const pregnancy = getPregnancyWeek(profile.dueDate);
   const visibleTasks = getListVisibleTasks();
 
@@ -1041,6 +1057,9 @@ function renderTimeline() {
 }
 
 function renderCalendar() {
+  if (!calendarGrid || !calendarMonthText || !calendarRangeText || !calendarPrevButton || !calendarNextButton) {
+    return;
+  }
   const today = clampDateToPregnancyRange(startOfDay(new Date()));
   const monthStart = new Date(calendarMonthDate.getFullYear(), calendarMonthDate.getMonth(), 1);
   const monthEnd = new Date(calendarMonthDate.getFullYear(), calendarMonthDate.getMonth() + 1, 0);
@@ -1104,6 +1123,7 @@ function renderCalendar() {
 }
 
 function renderCalendarAgenda() {
+  if (!calendarSelectedDateText || !calendarSelectedMetaText || !calendarAgendaList) return;
   const targetDate = clampDateToPregnancyRange(selectedCalendarDate);
   const pregnancy = getPregnancyProgressForDate(targetDate);
   const markers = getCalendarMarkersForDate(targetDate);
@@ -1128,6 +1148,16 @@ function renderCalendarAgenda() {
 }
 
 function renderTimelineSection() {
+  if (
+    !listViewButton ||
+    !calendarViewButton ||
+    !timelineView ||
+    !calendarView ||
+    !timelineHelperText ||
+    !timingFilter
+  ) {
+    return;
+  }
   const isCalendar = currentView === "calendar";
   listViewButton.classList.toggle("is-active", !isCalendar);
   listViewButton.classList.toggle("secondary", isCalendar);
@@ -1185,7 +1215,8 @@ function render() {
   renderTimelineSection();
 }
 
-resetButton.addEventListener("click", () => {
+if (resetButton) {
+  resetButton.addEventListener("click", () => {
   const shouldReset = window.confirm("공유 체크 상태를 모두 초기화할까요? 다른 기기에도 같이 반영됩니다.");
   if (!shouldReset) return;
 
@@ -1195,72 +1226,97 @@ resetButton.addEventListener("click", () => {
   });
   render();
   void queueSharedSync();
-});
+  });
+}
 
-categoryFilter.addEventListener("change", renderTimelineSection);
-statusFilter.addEventListener("change", renderTimelineSection);
-verificationFilter.addEventListener("change", renderTimelineSection);
-timingFilter.addEventListener("change", renderTimelineSection);
-listViewButton.addEventListener("click", () => {
-  currentView = "list";
-  renderTimelineSection();
-});
-calendarViewButton.addEventListener("click", () => {
-  currentView = "calendar";
-  renderTimelineSection();
-});
-calendarPrevButton.addEventListener("click", () => {
-  calendarMonthDate = addMonths(calendarMonthDate, -1);
-  selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
-  renderCalendar();
-});
-calendarNextButton.addEventListener("click", () => {
-  calendarMonthDate = addMonths(calendarMonthDate, 1);
-  selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
-  renderCalendar();
-});
-calendarTodayButton.addEventListener("click", () => {
-  selectedCalendarDate = clampDateToPregnancyRange(startOfDay(new Date()));
-  setCalendarMonthFromDate(selectedCalendarDate);
-  renderCalendar();
-});
-syncNowButton.addEventListener("click", () => {
-  void queueSharedSync();
-});
-shareCodeSaveButton.addEventListener("click", () => {
-  saveSharedCode(shareCodeInput.value);
-  renderSharedSync();
-  void queueSharedSync();
-});
-shareCodeClearButton.addEventListener("click", () => {
-  saveSharedCode("");
-  renderSharedSync();
-});
-shareCodeInput.addEventListener("change", () => {
-  saveSharedCode(shareCodeInput.value);
-  renderSharedSync();
-});
-localFocusButton.addEventListener("click", () => {
-  showLocalOnly = !showLocalOnly;
-  renderLocalBenefits();
-  renderTimelineSection();
-});
-focusCurrentButton.addEventListener("click", () => {
-  showLocalOnly = false;
-  renderLocalBenefits();
-  currentView = "list";
-  timingFilter.value = "current";
-  renderTimelineSection();
-});
-updateRefreshButton.addEventListener("click", () => {
-  updateState = {
-    ...updateState,
-    lastCheckedVersion: verifiedDate,
-    checkedAt: new Date().toISOString(),
-  };
-  saveUpdateState();
-  window.location.reload();
-});
+if (categoryFilter) categoryFilter.addEventListener("change", renderTimelineSection);
+if (statusFilter) statusFilter.addEventListener("change", renderTimelineSection);
+if (verificationFilter) verificationFilter.addEventListener("change", renderTimelineSection);
+if (timingFilter) timingFilter.addEventListener("change", renderTimelineSection);
+if (listViewButton) {
+  listViewButton.addEventListener("click", () => {
+    currentView = "list";
+    renderTimelineSection();
+  });
+}
+if (calendarViewButton) {
+  calendarViewButton.addEventListener("click", () => {
+    currentView = "calendar";
+    renderTimelineSection();
+  });
+}
+if (calendarPrevButton) {
+  calendarPrevButton.addEventListener("click", () => {
+    calendarMonthDate = addMonths(calendarMonthDate, -1);
+    selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
+    renderCalendar();
+  });
+}
+if (calendarNextButton) {
+  calendarNextButton.addEventListener("click", () => {
+    calendarMonthDate = addMonths(calendarMonthDate, 1);
+    selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
+    renderCalendar();
+  });
+}
+if (calendarTodayButton) {
+  calendarTodayButton.addEventListener("click", () => {
+    selectedCalendarDate = clampDateToPregnancyRange(startOfDay(new Date()));
+    setCalendarMonthFromDate(selectedCalendarDate);
+    renderCalendar();
+  });
+}
+if (syncNowButton) {
+  syncNowButton.addEventListener("click", () => {
+    void queueSharedSync();
+  });
+}
+if (shareCodeSaveButton && shareCodeInput) {
+  shareCodeSaveButton.addEventListener("click", () => {
+    saveSharedCode(shareCodeInput.value);
+    renderSharedSync();
+    void queueSharedSync();
+  });
+}
+if (shareCodeClearButton) {
+  shareCodeClearButton.addEventListener("click", () => {
+    saveSharedCode("");
+    renderSharedSync();
+  });
+}
+if (shareCodeInput) {
+  shareCodeInput.addEventListener("change", () => {
+    saveSharedCode(shareCodeInput.value);
+    renderSharedSync();
+  });
+}
+if (localFocusButton) {
+  localFocusButton.addEventListener("click", () => {
+    showLocalOnly = !showLocalOnly;
+    renderLocalBenefits();
+    renderTimelineSection();
+  });
+}
+if (focusCurrentButton && timingFilter) {
+  focusCurrentButton.addEventListener("click", () => {
+    showLocalOnly = false;
+    renderLocalBenefits();
+    currentView = "list";
+    timingFilter.value = "current";
+    renderTimelineSection();
+  });
+}
+if (updateRefreshButton) {
+  updateRefreshButton.addEventListener("click", () => {
+    updateState = {
+      ...updateState,
+      lastCheckedVersion: verifiedDate,
+      checkedAt: new Date().toISOString(),
+    };
+    saveUpdateState();
+    window.location.reload();
+  });
+}
 
 clearLegacyProfileStorage();
 render();

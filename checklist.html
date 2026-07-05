@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>주차별 체크리스트 | 우리 임신 타임라인</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="checklist">
+    <main class="app-shell">
+      <header class="top-band top-band--compact">
+        <div class="top-copy">
+          <p class="eyebrow">Checklist</p>
+          <h1>주차별 체크리스트</h1>
+          <p class="lead">리스트와 캘린더 두 방식으로 주차별 할 일을 정리합니다.</p>
+        </div>
+        <nav class="app-nav" aria-label="메인 메뉴">
+          <a class="app-nav__item" href="./index.html">대시보드</a>
+          <a class="app-nav__item is-active" href="./checklist.html">주차별 체크리스트</a>
+          <a class="app-nav__item" href="./local-benefits.html">지역 혜택</a>
+          <a class="app-nav__item" href="./updates.html">업데이트</a>
+          <a class="app-nav__item" href="./settings.html">환경설정</a>
+        </nav>
+      </header>
+
+      <section class="workspace">
+        <aside class="side-panel">
+          <div class="section-heading">
+            <p>필터</p>
+            <h2>보기 설정</h2>
+          </div>
+          <div class="control-group">
+            <label>
+              구분
+              <select id="categoryFilter">
+                <option value="all">전체</option>
+                <option value="official">공식 지원</option>
+                <option value="hospital">병원/건강</option>
+                <option value="booking">예약</option>
+                <option value="finance">보험/비용</option>
+                <option value="personal">개인 준비</option>
+              </select>
+            </label>
+            <label>
+              상태
+              <select id="statusFilter">
+                <option value="all">전체</option>
+                <option value="open">진행 전</option>
+                <option value="done">완료</option>
+              </select>
+            </label>
+            <label>
+              검증
+              <select id="verificationFilter">
+                <option value="all">전체</option>
+                <option value="official">공식 확인</option>
+                <option value="partial">일부 공식 확인</option>
+                <option value="video">영상 기반</option>
+                <option value="needs_check">확인 필요</option>
+                <option value="general">일반 준비</option>
+              </select>
+            </label>
+            <label>
+              시점
+              <select id="timingFilter">
+                <option value="all">전체</option>
+                <option value="current">지금 해당</option>
+                <option value="upcoming">앞으로 할 일</option>
+                <option value="past">지난 항목</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="source-box">
+            <h3>출처 메모</h3>
+            <p>
+              각 항목은 공식 확인, 일부 공식 확인, 영상 기반, 확인 필요 상태로 구분됩니다.
+              금액과 적용 조건이 바뀔 수 있는 항목은 공식 링크와 마지막 검증일을 함께 확인하세요.
+            </p>
+            <a href="https://www.gov.kr/portal/onestopSvc/fertility" target="_blank" rel="noreferrer">정부24 맘편한 임신</a>
+          </div>
+        </aside>
+
+        <section class="timeline-area">
+          <div class="timeline-head">
+            <div class="section-heading">
+              <p>Timeline</p>
+              <h2>주차별 체크리스트</h2>
+            </div>
+            <div class="view-switch" role="tablist" aria-label="체크리스트 보기 전환">
+              <button type="button" class="is-active" id="listViewButton" role="tab" aria-selected="true">리스트</button>
+              <button type="button" class="secondary" id="calendarViewButton" role="tab" aria-selected="false">캘린더</button>
+            </div>
+          </div>
+          <p class="timeline-helper" id="timelineHelperText">주차 흐름대로 한 번에 보는 기본 리스트입니다.</p>
+          <div class="timeline-view" id="timelineView">
+            <div class="timeline" id="timeline"></div>
+          </div>
+          <div class="calendar-view is-hidden" id="calendarView">
+            <div class="calendar-toolbar">
+              <button type="button" class="secondary" id="calendarPrevButton">이전 달</button>
+              <div class="calendar-toolbar-copy">
+                <strong id="calendarMonthText">-</strong>
+                <span id="calendarRangeText">-</span>
+              </div>
+              <button type="button" class="secondary" id="calendarNextButton">다음 달</button>
+            </div>
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-agenda">
+              <div class="calendar-agenda-head">
+                <div>
+                  <strong id="calendarSelectedDateText">-</strong>
+                  <p id="calendarSelectedMetaText">-</p>
+                </div>
+                <button type="button" class="secondary" id="calendarTodayButton">오늘로 이동</button>
+              </div>
+              <div class="calendar-agenda-list" id="calendarAgendaList"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

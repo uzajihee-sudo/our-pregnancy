@@ -6,44 +6,24 @@
     <title>우리 임신 타임라인</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-page="dashboard">
     <main class="app-shell">
-      <section class="top-band">
+      <header class="top-band">
         <div class="top-copy">
-          <p class="eyebrow">Pregnancy timeline assistant</p>
-          <h1>우리 임신 타임라인</h1>
+          <p class="eyebrow">Dashboard</p>
+          <h1>대시보드</h1>
           <p class="lead">
-            출산예정일을 기준으로 지금 해야 할 일, 놓치기 쉬운 신청, 확인이 필요한 혜택을 한 화면에서 정리합니다.
+            현재 주차와 D-day, 지금 처리할 항목을 먼저 확인하고 필요한 페이지로 바로 이동합니다.
           </p>
         </div>
-
-        <section class="profile-panel" aria-label="기준 정보">
-          <div class="fixed-profile-head">
-            <p>Profile</p>
-            <h2>기준 정보</h2>
-          </div>
-          <div class="fixed-profile-grid">
-            <article class="fixed-profile-item">
-              <span>마지막 생리 시작일</span>
-              <strong id="fixedLmpText">-</strong>
-            </article>
-            <article class="fixed-profile-item">
-              <span>출산예정일</span>
-              <strong id="fixedDueText">-</strong>
-            </article>
-            <article class="fixed-profile-item">
-              <span>거주지역</span>
-              <strong id="fixedRegionText">-</strong>
-            </article>
-          </div>
-          <p class="fixed-profile-note">
-            두 분이 같이 쓰는 기준으로 마지막 생리 시작일과 거주지역을 고정해 계산합니다.
-          </p>
-          <div class="panel-actions">
-            <button type="button" class="secondary" id="resetButton">공유 체크 초기화</button>
-          </div>
-        </section>
-      </section>
+        <nav class="app-nav" aria-label="메인 메뉴">
+          <a class="app-nav__item is-active" href="./index.html">대시보드</a>
+          <a class="app-nav__item" href="./checklist.html">주차별 체크리스트</a>
+          <a class="app-nav__item" href="./local-benefits.html">지역 혜택</a>
+          <a class="app-nav__item" href="./updates.html">업데이트</a>
+          <a class="app-nav__item" href="./settings.html">환경설정</a>
+        </nav>
+      </header>
 
       <section class="status-grid" aria-label="임신 상태 요약">
         <article>
@@ -79,84 +59,6 @@
         </article>
       </section>
 
-      <section class="sync-panel" aria-label="공유 체크 동기화">
-        <div class="section-heading">
-          <p>Sync</p>
-          <h2>공유 체크 동기화</h2>
-        </div>
-        <div class="sync-panel-body">
-          <div class="update-panel-status">
-            <div class="update-metric">
-              <span>동기화 상태</span>
-              <strong id="syncStatusText">연결 중</strong>
-            </div>
-            <div class="update-metric">
-              <span>대기 중 변경</span>
-              <strong id="syncPendingCount">0건</strong>
-            </div>
-          </div>
-          <div class="sync-panel-actions">
-            <p id="syncMetaText">두 분이 같은 체크 상태를 보도록 서버와 연결합니다.</p>
-            <button type="button" class="secondary" id="syncNowButton">지금 동기화</button>
-          </div>
-        </div>
-        <div class="sync-code-row">
-          <label class="sync-code-field">
-            공유 코드
-            <input id="shareCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="공유 코드 입력" />
-          </label>
-          <div class="sync-code-actions">
-            <button type="button" id="shareCodeSaveButton">저장</button>
-            <button type="button" class="secondary" id="shareCodeClearButton">지우기</button>
-          </div>
-        </div>
-        <p class="sync-code-note" id="shareCodeStatusText">공유 코드를 입력해야 서로 같은 체크 상태를 씁니다.</p>
-      </section>
-
-      <section class="update-panel" aria-label="업데이트 확인">
-        <div class="section-heading">
-          <p>Updates</p>
-          <h2>업데이트 확인</h2>
-        </div>
-        <div class="update-panel-body">
-          <div class="update-panel-status">
-            <div class="update-metric">
-              <span>마지막 업데이트</span>
-              <strong id="updateDateText">-</strong>
-            </div>
-            <div class="update-metric">
-              <span>이번 업데이트 신규 혜택</span>
-              <strong id="newBenefitsCount">-</strong>
-            </div>
-          </div>
-          <div class="update-panel-actions">
-            <p id="updateStatusText">최신 배포본과 새로 들어온 혜택을 확인합니다.</p>
-            <button type="button" class="secondary" id="updateRefreshButton">업데이트 확인</button>
-          </div>
-        </div>
-        <div class="new-benefits">
-          <div class="new-benefits-head">
-            <strong>이번 업데이트에 새로 들어온 혜택</strong>
-          </div>
-          <div class="current-spotlight-list" id="newBenefitsList"></div>
-        </div>
-      </section>
-
-      <section class="local-benefits-panel" aria-label="지역 혜택">
-        <div class="section-heading">
-          <p>Local</p>
-          <h2 id="localBenefitsTitle">지역 혜택</h2>
-        </div>
-        <div class="local-benefits-body">
-          <div class="local-benefits-copy">
-            <strong id="localBenefitsSummary">보건소와 지자체 확인 항목을 모았습니다.</strong>
-            <p id="localBenefitsDetail">거주지 기준으로 수시 확인이 필요한 혜택을 위쪽에 묶어 보여줍니다.</p>
-          </div>
-          <button type="button" class="secondary" id="localFocusButton">지역 항목만 보기</button>
-        </div>
-        <div class="current-spotlight-list" id="localBenefitsList"></div>
-      </section>
-
       <section class="current-spotlight" aria-label="지금 해야 할 일">
         <div class="section-heading">
           <p>Now</p>
@@ -167,115 +69,9 @@
             <strong id="currentSpotlightTitle">예정일을 입력하면 지금 해야 할 일을 보여줍니다.</strong>
             <p id="currentSpotlightDetail">현재 주차에 맞는 항목을 위로 끌어올려 바로 확인할 수 있습니다.</p>
           </div>
-          <button type="button" class="secondary" id="focusCurrentButton">현재 항목만 보기</button>
+          <a class="button-link secondary" href="./checklist.html">체크리스트로 이동</a>
         </div>
         <div class="current-spotlight-list" id="currentSpotlightList"></div>
-      </section>
-
-      <section class="workspace">
-        <aside class="side-panel">
-          <div class="section-heading">
-            <p>필터</p>
-            <h2>보기 설정</h2>
-          </div>
-          <div class="control-group">
-            <label>
-              구분
-              <select id="categoryFilter">
-                <option value="all">전체</option>
-                <option value="official">공식 지원</option>
-                <option value="hospital">병원/건강</option>
-                <option value="booking">예약</option>
-                <option value="finance">보험/비용</option>
-                <option value="personal">개인 준비</option>
-              </select>
-            </label>
-            <label>
-              상태
-              <select id="statusFilter">
-                <option value="all">전체</option>
-                <option value="open">진행 전</option>
-                <option value="done">완료</option>
-              </select>
-            </label>
-            <label>
-              검증
-              <select id="verificationFilter">
-                <option value="all">전체</option>
-                <option value="official">공식 확인</option>
-                <option value="partial">일부 공식 확인</option>
-                <option value="video">영상 기반</option>
-                <option value="needs_check">확인 필요</option>
-                <option value="general">일반 준비</option>
-              </select>
-            </label>
-            <label>
-              시점
-              <select id="timingFilter">
-                <option value="all">전체</option>
-                <option value="current">지금 해당</option>
-                <option value="upcoming">앞으로 할 일</option>
-                <option value="past">지난 항목</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="source-box">
-            <h3>출처 메모</h3>
-            <p>
-              각 항목은 공식 확인, 일부 공식 확인, 영상 기반, 확인 필요 상태로 구분됩니다.
-              금액과 적용 조건이 바뀔 수 있는 항목은 공식 링크와 마지막 검증일을 함께 확인하세요.
-            </p>
-            <a href="https://www.gov.kr/portal/onestopSvc/fertility" target="_blank" rel="noreferrer">정부24 맘편한 임신</a>
-          </div>
-        </aside>
-
-        <section class="timeline-area">
-          <div class="timeline-head">
-            <div class="section-heading">
-              <p>Timeline</p>
-              <h2>주차별 체크리스트</h2>
-            </div>
-            <div class="view-switch" role="tablist" aria-label="체크리스트 보기 전환">
-              <button type="button" class="is-active" id="listViewButton" role="tab" aria-selected="true">리스트</button>
-              <button type="button" class="secondary" id="calendarViewButton" role="tab" aria-selected="false">캘린더</button>
-            </div>
-          </div>
-          <p class="timeline-helper" id="timelineHelperText">주차 흐름대로 한 번에 보는 기본 리스트입니다.</p>
-          <div class="timeline-view" id="timelineView">
-            <div class="timeline" id="timeline"></div>
-          </div>
-          <div class="calendar-view is-hidden" id="calendarView">
-            <div class="calendar-toolbar">
-              <button type="button" class="secondary" id="calendarPrevButton">이전 달</button>
-              <div class="calendar-toolbar-copy">
-                <strong id="calendarMonthText">-</strong>
-                <span id="calendarRangeText">-</span>
-              </div>
-              <button type="button" class="secondary" id="calendarNextButton">다음 달</button>
-            </div>
-            <div class="calendar-weekdays" aria-hidden="true">
-              <span>일</span>
-              <span>월</span>
-              <span>화</span>
-              <span>수</span>
-              <span>목</span>
-              <span>금</span>
-              <span>토</span>
-            </div>
-            <div class="calendar-grid" id="calendarGrid"></div>
-            <div class="calendar-agenda">
-              <div class="calendar-agenda-head">
-                <div>
-                  <strong id="calendarSelectedDateText">-</strong>
-                  <p id="calendarSelectedMetaText">-</p>
-                </div>
-                <button type="button" class="secondary" id="calendarTodayButton">오늘로 이동</button>
-              </div>
-              <div class="calendar-agenda-list" id="calendarAgendaList"></div>
-            </div>
-          </div>
-        </section>
       </section>
     </main>
 
