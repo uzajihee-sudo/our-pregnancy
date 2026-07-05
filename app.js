@@ -41,6 +41,20 @@ const statusFilter = document.querySelector("#statusFilter");
 const verificationFilter = document.querySelector("#verificationFilter");
 const timingFilter = document.querySelector("#timingFilter");
 const timeline = document.querySelector("#timeline");
+const timelineHelperText = document.querySelector("#timelineHelperText");
+const timelineView = document.querySelector("#timelineView");
+const calendarView = document.querySelector("#calendarView");
+const listViewButton = document.querySelector("#listViewButton");
+const calendarViewButton = document.querySelector("#calendarViewButton");
+const calendarPrevButton = document.querySelector("#calendarPrevButton");
+const calendarNextButton = document.querySelector("#calendarNextButton");
+const calendarTodayButton = document.querySelector("#calendarTodayButton");
+const calendarMonthText = document.querySelector("#calendarMonthText");
+const calendarRangeText = document.querySelector("#calendarRangeText");
+const calendarGrid = document.querySelector("#calendarGrid");
+const calendarSelectedDateText = document.querySelector("#calendarSelectedDateText");
+const calendarSelectedMetaText = document.querySelector("#calendarSelectedMetaText");
+const calendarAgendaList = document.querySelector("#calendarAgendaList");
 
 const todayText = document.querySelector("#todayText");
 const weekText = document.querySelector("#weekText");
@@ -78,9 +92,14 @@ let pendingOps = normalizePendingOperations(loadJson(PENDING_KEY, []));
 let updateState = loadJson(UPDATE_KEY, {});
 let sharedCode = loadString(SHARE_CODE_KEY).trim();
 let showLocalOnly = false;
+let currentView = "list";
 let syncJob = Promise.resolve();
 let syncIntervalId = null;
 const deviceId = getOrCreateDeviceId();
+const pregnancyStartDate = parseISODate(FIXED_LMP_DATE);
+const pregnancyDueDate = parseISODate(createFixedProfile().dueDate);
+let calendarMonthDate = getInitialCalendarMonth();
+let selectedCalendarDate = clampDateToPregnancyRange(startOfDay(new Date()));
 const sharedSync = {
   mode: "connecting",
   isBusy: false,
@@ -273,6 +292,13 @@ function formatDate(date) {
   }).format(date);
 }
 
+function formatMonth(date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+  }).format(date);
+}
+
 function formatShortDate(value) {
   const parsed = parseISODate(value);
   if (!parsed) return value;
@@ -293,6 +319,140 @@ function formatDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
   }).format(parsed);
+}
+
+function getPregnancyProgressForDate(date) {
+  if (!date || !pregnancyStartDate) return null;
+  const target = startOfDay(date);
+  const daysPregnant = Math.round((target - pregnancyStartDate) / DAY);
+  if (daysPregnant < 0) return null;
+  return {
+    week: Math.floor(daysPregnant / 7),
+    day: daysPregnant % 7,
+    daysPregnant,
+    daysUntilDue: Math.round((pregnancyDueDate - target) / DAY),
+  };
+}
+
+function clampDateToPregnancyRange(date) {
+  const target = startOfDay(date);
+  if (target < pregnancyStartDate) return startOfDay(pregnancyStartDate);
+  if (target > pregnancyDueDate) return startOfDay(pregnancyDueDate);
+  return target;
+}
+
+function getInitialCalendarMonth() {
+  const today = startOfDay(new Date());
+  const inRange = clampDateToPregnancyRange(today);
+  return new Date(inRange.getFullYear(), inRange.getMonth(), 1);
+}
+
+function setCalendarMonthFromDate(date) {
+  calendarMonthDate = new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function toDateKey(date) {
+  return formatISODate(startOfDay(date));
+}
+
+function isSameDate(a, b) {
+  return toDateKey(a) === toDateKey(b);
+}
+
+function getMonthBounds(date) {
+  return {
+    start: new Date(date.getFullYear(), date.getMonth(), 1),
+    end: new Date(date.getFullYear(), date.getMonth() + 1, 0),
+  };
+}
+
+function addMonths(date, amount) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getWeekStartDate(week) {
+  return addDays(pregnancyStartDate, week * 7);
+}
+
+function getWeekEndDate(week) {
+  return addDays(pregnancyStartDate, week * 7 + 6);
+}
+
+function getFirstSelectableDateInMonth(date) {
+  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  if (monthEnd < pregnancyStartDate) return startOfDay(pregnancyStartDate);
+  if (monthStart > pregnancyDueDate) return startOfDay(pregnancyDueDate);
+  return monthStart < pregnancyStartDate ? startOfDay(pregnancyStartDate) : monthStart;
+}
+
+function getCalendarDays(date) {
+  const { start, end } = getMonthBounds(date);
+  const gridStart = addDays(start, -start.getDay());
+  const gridEnd = addDays(end, 6 - end.getDay());
+  const days = [];
+
+  for (let cursor = startOfDay(gridStart); cursor <= gridEnd; cursor = addDays(cursor, 1)) {
+    days.push(cursor);
+  }
+
+  return days;
+}
+
+function getCalendarTaskCandidates() {
+  const selectedCategory = categoryFilter.value;
+  const selectedStatus = statusFilter.value;
+  const selectedVerification = verificationFilter.value;
+
+  return tasks
+    .filter((task) => !showLocalOnly || task.local)
+    .filter((task) => selectedCategory === "all" || task.category === selectedCategory)
+    .filter(
+      (task) => selectedVerification === "all" || task.verification === selectedVerification,
+    )
+    .filter((task) => {
+      const isDone = done.includes(task.id);
+      if (selectedStatus === "done") return isDone;
+      if (selectedStatus === "open") return !isDone;
+      return true;
+    });
+}
+
+function getCalendarMarkersForDate(date) {
+  const targetKey = toDateKey(date);
+
+  return getCalendarTaskCandidates()
+    .flatMap((task) => {
+      const markers = [];
+      const startDate = getWeekStartDate(task.from);
+      const endDate = getWeekEndDate(task.to);
+
+      if (toDateKey(startDate) === targetKey) {
+        markers.push({
+          task,
+          type: "start",
+          date: startDate,
+          pregnancy: getPregnancyProgressForDate(startDate),
+        });
+      }
+
+      if (toDateKey(endDate) === targetKey) {
+        markers.push({
+          task,
+          type: "end",
+          date: endDate,
+          pregnancy: getPregnancyProgressForDate(endDate),
+        });
+      }
+
+      return markers;
+    })
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === "start" ? -1 : 1;
+      const verificationDelta = getVerificationRank(a.task) - getVerificationRank(b.task);
+      if (verificationDelta !== 0) return verificationDelta;
+      return a.task.from - b.task.from;
+    });
 }
 
 function isNewBenefit(task) {
@@ -646,6 +806,110 @@ function renderCurrentSpotlightItem(task, rank) {
   `;
 }
 
+function renderTaskCard(task, options = {}) {
+  const pregnancy = options.pregnancy ?? getPregnancyWeek(profile.dueDate);
+  const isDone = done.includes(task.id);
+  const isCurrent = pregnancy && pregnancy.week >= task.from && pregnancy.week <= task.to;
+  const verification = task.verification ?? "video";
+  const verificationLabel = verificationLabels[verification] ?? "상태 미정";
+  const wrapper = document.createElement("article");
+  wrapper.className = `task${isDone ? " is-done" : ""}${isCurrent ? " is-current" : ""}`;
+  wrapper.innerHTML = `
+    <input type="checkbox" ${isDone ? "checked" : ""} aria-label="${task.title} 완료" />
+    <div>
+      <h3>${task.title}</h3>
+      <p>${task.body}</p>
+      <div class="meta-row">
+        <span class="pill">${task.from}-${task.to}주</span>
+        ${task.local ? '<span class="pill local">지역 혜택</span>' : ""}
+        <span class="pill ${task.category === "official" ? "official" : ""}">${categoryLabels[task.category]}</span>
+        <span class="pill verify ${verification}">${verificationLabel}</span>
+        ${isNewBenefit(task) ? '<span class="pill new">새 혜택</span>' : ""}
+        <span class="pill">출처: ${task.source}</span>
+        <span class="pill">검증일: ${verifiedDate}</span>
+        ${task.warning ? `<span class="pill warning">${task.warning}</span>` : ""}
+      </div>
+    </div>
+    ${task.href ? `<a class="task-link" href="${task.href}" target="_blank" rel="noreferrer">확인하기</a>` : "<span></span>"}
+  `;
+
+  wrapper.querySelector("input").addEventListener("change", (event) => {
+    setDone(
+      event.target.checked
+        ? [...new Set([...done, task.id])]
+        : done.filter((id) => id !== task.id),
+    );
+    enqueuePendingOperation({
+      type: "set",
+      taskId: task.id,
+      checked: event.target.checked,
+    });
+    render();
+    void queueSharedSync();
+  });
+
+  return wrapper;
+}
+
+function getMarkerTypeLabel(type) {
+  return type === "start" ? "시작" : "종료";
+}
+
+function renderCalendarAgendaItem(marker) {
+  const { task, type, pregnancy } = marker;
+  const verification = task.verification ?? "video";
+  const verificationLabel = verificationLabels[verification] ?? "상태 미정";
+  const isDone = done.includes(task.id);
+  const details = document.createElement("details");
+  details.className = `calendar-agenda-item${isDone ? " is-done" : ""}`;
+  details.innerHTML = `
+    <summary class="calendar-agenda-summary">
+      <span class="calendar-event-badge ${type}">${getMarkerTypeLabel(type)}</span>
+      <span class="calendar-agenda-title">${task.title}</span>
+      <span class="calendar-agenda-range">${task.from}-${task.to}주</span>
+    </summary>
+    <div class="calendar-agenda-body">
+      <div class="calendar-agenda-meta">
+        <span class="pill ${task.category === "official" ? "official" : ""}">${categoryLabels[task.category]}</span>
+        <span class="pill verify ${verification}">${verificationLabel}</span>
+        ${task.local ? '<span class="pill local">지역 혜택</span>' : ""}
+        ${pregnancy ? `<span class="pill">${pregnancy.week}주 ${pregnancy.day}일</span>` : ""}
+        ${isDone ? '<span class="pill done">체크 완료</span>' : ""}
+      </div>
+      <p>${task.body}</p>
+      <div class="calendar-agenda-actions">
+        <label class="calendar-check-toggle">
+          <input type="checkbox" ${isDone ? "checked" : ""} aria-label="${task.title} 완료" />
+          <span>완료 체크</span>
+        </label>
+        ${task.href ? `<a class="task-link" href="${task.href}" target="_blank" rel="noreferrer">확인하기</a>` : ""}
+      </div>
+      <div class="calendar-agenda-foot">
+        <span class="pill">출처: ${task.source}</span>
+        <span class="pill">검증일: ${verifiedDate}</span>
+        ${task.warning ? `<span class="pill warning">${task.warning}</span>` : ""}
+      </div>
+    </div>
+  `;
+
+  details.querySelector("input").addEventListener("change", (event) => {
+    setDone(
+      event.target.checked
+        ? [...new Set([...done, task.id])]
+        : done.filter((id) => id !== task.id),
+    );
+    enqueuePendingOperation({
+      type: "set",
+      taskId: task.id,
+      checked: event.target.checked,
+    });
+    render();
+    void queueSharedSync();
+  });
+
+  return details;
+}
+
 function renderLocalBenefitItem(task, pregnancy) {
   const verification = task.verification ?? "video";
   const verificationLabel = verificationLabels[verification] ?? "상태 미정";
@@ -721,14 +985,14 @@ function getVerificationRank(task) {
   return verificationRank[task.verification ?? "video"] ?? 9;
 }
 
-function renderTimeline() {
+function getListVisibleTasks() {
   const pregnancy = getPregnancyWeek(profile.dueDate);
   const selectedCategory = categoryFilter.value;
   const selectedStatus = statusFilter.value;
   const selectedVerification = verificationFilter.value;
   const selectedTiming = timingFilter.value;
 
-  const visibleTasks = tasks
+  return tasks
     .filter((task) => !showLocalOnly || task.local)
     .filter((task) => selectedCategory === "all" || task.category === selectedCategory)
     .filter(
@@ -746,6 +1010,11 @@ function renderTimeline() {
       if (phaseDelta !== 0) return phaseDelta;
       return a.from - b.from;
     });
+}
+
+function renderTimeline() {
+  const pregnancy = getPregnancyWeek(profile.dueDate);
+  const visibleTasks = getListVisibleTasks();
 
   timeline.innerHTML = "";
 
@@ -766,48 +1035,119 @@ function renderTimeline() {
       timeline.appendChild(heading);
     }
 
-    const isDone = done.includes(task.id);
-    const isCurrent = pregnancy && pregnancy.week >= task.from && pregnancy.week <= task.to;
-    const verification = task.verification ?? "video";
-    const verificationLabel = verificationLabels[verification] ?? "상태 미정";
-    const item = document.createElement("article");
-    item.className = `task${isDone ? " is-done" : ""}${isCurrent ? " is-current" : ""}`;
-    item.innerHTML = `
-      <input type="checkbox" ${isDone ? "checked" : ""} aria-label="${task.title} 완료" />
-      <div>
-        <h3>${task.title}</h3>
-        <p>${task.body}</p>
-        <div class="meta-row">
-          <span class="pill">${task.from}-${task.to}주</span>
-          ${task.local ? '<span class="pill local">지역 혜택</span>' : ""}
-          <span class="pill ${task.category === "official" ? "official" : ""}">${categoryLabels[task.category]}</span>
-          <span class="pill verify ${verification}">${verificationLabel}</span>
-          ${isNewBenefit(task) ? '<span class="pill new">새 혜택</span>' : ""}
-          <span class="pill">출처: ${task.source}</span>
-          <span class="pill">검증일: ${verifiedDate}</span>
-          ${task.warning ? `<span class="pill warning">${task.warning}</span>` : ""}
-        </div>
-      </div>
-      ${task.href ? `<a class="task-link" href="${task.href}" target="_blank" rel="noreferrer">확인하기</a>` : "<span></span>"}
-    `;
-
-    item.querySelector("input").addEventListener("change", (event) => {
-      setDone(
-        event.target.checked
-        ? [...new Set([...done, task.id])]
-        : done.filter((id) => id !== task.id),
-      );
-      enqueuePendingOperation({
-        type: "set",
-        taskId: task.id,
-        checked: event.target.checked,
-      });
-      render();
-      void queueSharedSync();
-    });
-
+    const item = renderTaskCard(task, { pregnancy });
     timeline.appendChild(item);
   });
+}
+
+function renderCalendar() {
+  const today = clampDateToPregnancyRange(startOfDay(new Date()));
+  const monthStart = new Date(calendarMonthDate.getFullYear(), calendarMonthDate.getMonth(), 1);
+  const monthEnd = new Date(calendarMonthDate.getFullYear(), calendarMonthDate.getMonth() + 1, 0);
+  const monthDays = getCalendarDays(monthStart);
+  const minMonth = new Date(pregnancyStartDate.getFullYear(), pregnancyStartDate.getMonth(), 1);
+  const maxMonth = new Date(pregnancyDueDate.getFullYear(), pregnancyDueDate.getMonth(), 1);
+
+  calendarMonthText.textContent = formatMonth(monthStart);
+  calendarRangeText.textContent = `${formatShortDate(toDateKey(monthStart))} - ${formatShortDate(toDateKey(monthEnd))}`;
+  calendarPrevButton.disabled = monthStart <= minMonth;
+  calendarNextButton.disabled = monthStart >= maxMonth;
+
+  if (
+    selectedCalendarDate.getFullYear() !== monthStart.getFullYear() ||
+    selectedCalendarDate.getMonth() !== monthStart.getMonth()
+  ) {
+    selectedCalendarDate = getFirstSelectableDateInMonth(monthStart);
+  }
+
+  calendarGrid.innerHTML = "";
+
+  monthDays.forEach((date) => {
+    const inCurrentMonth = date.getMonth() === monthStart.getMonth();
+    const inPregnancyRange = date >= pregnancyStartDate && date <= pregnancyDueDate;
+    const dailyMarkers = inPregnancyRange ? getCalendarMarkersForDate(date) : [];
+    const startCount = dailyMarkers.filter((marker) => marker.type === "start").length;
+    const endCount = dailyMarkers.filter((marker) => marker.type === "end").length;
+    const pregnancy = inPregnancyRange ? getPregnancyProgressForDate(date) : null;
+
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = `calendar-day${inCurrentMonth ? "" : " is-outside"}${inPregnancyRange ? " is-in-range" : ""}${isSameDate(date, selectedCalendarDate) ? " is-selected" : ""}${isSameDate(date, today) ? " is-today" : ""}${dailyMarkers.length === 0 ? " is-empty" : ""}`;
+    cell.innerHTML = `
+      <div class="calendar-day-top">
+        <span class="calendar-day-number">${date.getDate()}</span>
+        <span class="calendar-week-badge">${pregnancy ? `${pregnancy.week}주` : ""}</span>
+      </div>
+      <div class="calendar-day-metrics">
+        ${startCount ? `<span class="calendar-pill start">시작 ${startCount}</span>` : ""}
+        ${endCount ? `<span class="calendar-pill end">종료 ${endCount}</span>` : ""}
+        ${!inPregnancyRange ? '<span class="calendar-pill">범위 밖</span>' : ""}
+      </div>
+      <div class="calendar-preview">
+        ${dailyMarkers
+          .slice(0, 3)
+          .map((marker) => `<span><b>${getMarkerTypeLabel(marker.type)}</b> ${marker.task.title}</span>`)
+          .join("")}
+        ${dailyMarkers.length > 3 ? `<span>+${dailyMarkers.length - 3}개 더</span>` : ""}
+      </div>
+    `;
+    cell.disabled = !inPregnancyRange;
+    cell.addEventListener("click", () => {
+      selectedCalendarDate = startOfDay(date);
+      setCalendarMonthFromDate(date);
+      renderCalendar();
+    });
+    calendarGrid.appendChild(cell);
+  });
+
+  renderCalendarAgenda();
+}
+
+function renderCalendarAgenda() {
+  const targetDate = clampDateToPregnancyRange(selectedCalendarDate);
+  const pregnancy = getPregnancyProgressForDate(targetDate);
+  const markers = getCalendarMarkersForDate(targetDate);
+  const startCount = markers.filter((marker) => marker.type === "start").length;
+  const endCount = markers.filter((marker) => marker.type === "end").length;
+
+  calendarSelectedDateText.textContent = formatDate(targetDate);
+  calendarSelectedMetaText.textContent = pregnancy
+    ? `${pregnancy.week}주 ${pregnancy.day}일 기준, 시작 ${startCount}개 / 종료 ${endCount}개`
+    : "선택 날짜의 체크리스트를 보여줍니다.";
+
+  calendarAgendaList.innerHTML = "";
+  if (markers.length === 0) {
+    calendarAgendaList.innerHTML =
+      '<div class="empty-state compact">선택한 날짜에는 시작되거나 종료되는 항목이 없습니다.</div>';
+    return;
+  }
+
+  markers.forEach((marker) => {
+    calendarAgendaList.appendChild(renderCalendarAgendaItem(marker));
+  });
+}
+
+function renderTimelineSection() {
+  const isCalendar = currentView === "calendar";
+  listViewButton.classList.toggle("is-active", !isCalendar);
+  listViewButton.classList.toggle("secondary", isCalendar);
+  listViewButton.setAttribute("aria-selected", String(!isCalendar));
+  calendarViewButton.classList.toggle("is-active", isCalendar);
+  calendarViewButton.classList.toggle("secondary", !isCalendar);
+  calendarViewButton.setAttribute("aria-selected", String(isCalendar));
+  timelineView.classList.toggle("is-hidden", isCalendar);
+  calendarView.classList.toggle("is-hidden", !isCalendar);
+  timingFilter.disabled = isCalendar;
+  timelineHelperText.textContent = isCalendar
+    ? "캘린더는 시작 주차와 종료 주차만 표시해 밀도를 낮추고, 날짜를 누르면 상세를 펼쳐 봅니다."
+    : "주차 흐름대로 한 번에 보는 기본 리스트입니다.";
+
+  if (isCalendar) {
+    renderCalendar();
+    return;
+  }
+
+  renderTimeline();
 }
 
 function getTaskPhase(task) {
@@ -842,7 +1182,7 @@ function render() {
   renderUpdates();
   renderLocalBenefits();
   renderSummary();
-  renderTimeline();
+  renderTimelineSection();
 }
 
 resetButton.addEventListener("click", () => {
@@ -857,10 +1197,33 @@ resetButton.addEventListener("click", () => {
   void queueSharedSync();
 });
 
-categoryFilter.addEventListener("change", renderTimeline);
-statusFilter.addEventListener("change", renderTimeline);
-verificationFilter.addEventListener("change", renderTimeline);
-timingFilter.addEventListener("change", renderTimeline);
+categoryFilter.addEventListener("change", renderTimelineSection);
+statusFilter.addEventListener("change", renderTimelineSection);
+verificationFilter.addEventListener("change", renderTimelineSection);
+timingFilter.addEventListener("change", renderTimelineSection);
+listViewButton.addEventListener("click", () => {
+  currentView = "list";
+  renderTimelineSection();
+});
+calendarViewButton.addEventListener("click", () => {
+  currentView = "calendar";
+  renderTimelineSection();
+});
+calendarPrevButton.addEventListener("click", () => {
+  calendarMonthDate = addMonths(calendarMonthDate, -1);
+  selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
+  renderCalendar();
+});
+calendarNextButton.addEventListener("click", () => {
+  calendarMonthDate = addMonths(calendarMonthDate, 1);
+  selectedCalendarDate = getFirstSelectableDateInMonth(calendarMonthDate);
+  renderCalendar();
+});
+calendarTodayButton.addEventListener("click", () => {
+  selectedCalendarDate = clampDateToPregnancyRange(startOfDay(new Date()));
+  setCalendarMonthFromDate(selectedCalendarDate);
+  renderCalendar();
+});
 syncNowButton.addEventListener("click", () => {
   void queueSharedSync();
 });
@@ -880,13 +1243,14 @@ shareCodeInput.addEventListener("change", () => {
 localFocusButton.addEventListener("click", () => {
   showLocalOnly = !showLocalOnly;
   renderLocalBenefits();
-  renderTimeline();
+  renderTimelineSection();
 });
 focusCurrentButton.addEventListener("click", () => {
   showLocalOnly = false;
   renderLocalBenefits();
+  currentView = "list";
   timingFilter.value = "current";
-  renderTimeline();
+  renderTimelineSection();
 });
 updateRefreshButton.addEventListener("click", () => {
   updateState = {

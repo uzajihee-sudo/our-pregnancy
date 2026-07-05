@@ -231,11 +231,50 @@
         </aside>
 
         <section class="timeline-area">
-          <div class="section-heading">
-            <p>Timeline</p>
-            <h2>주차별 체크리스트</h2>
+          <div class="timeline-head">
+            <div class="section-heading">
+              <p>Timeline</p>
+              <h2>주차별 체크리스트</h2>
+            </div>
+            <div class="view-switch" role="tablist" aria-label="체크리스트 보기 전환">
+              <button type="button" class="is-active" id="listViewButton" role="tab" aria-selected="true">리스트</button>
+              <button type="button" class="secondary" id="calendarViewButton" role="tab" aria-selected="false">캘린더</button>
+            </div>
           </div>
-          <div class="timeline" id="timeline"></div>
+          <p class="timeline-helper" id="timelineHelperText">주차 흐름대로 한 번에 보는 기본 리스트입니다.</p>
+          <div class="timeline-view" id="timelineView">
+            <div class="timeline" id="timeline"></div>
+          </div>
+          <div class="calendar-view is-hidden" id="calendarView">
+            <div class="calendar-toolbar">
+              <button type="button" class="secondary" id="calendarPrevButton">이전 달</button>
+              <div class="calendar-toolbar-copy">
+                <strong id="calendarMonthText">-</strong>
+                <span id="calendarRangeText">-</span>
+              </div>
+              <button type="button" class="secondary" id="calendarNextButton">다음 달</button>
+            </div>
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>일</span>
+              <span>월</span>
+              <span>화</span>
+              <span>수</span>
+              <span>목</span>
+              <span>금</span>
+              <span>토</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-agenda">
+              <div class="calendar-agenda-head">
+                <div>
+                  <strong id="calendarSelectedDateText">-</strong>
+                  <p id="calendarSelectedMetaText">-</p>
+                </div>
+                <button type="button" class="secondary" id="calendarTodayButton">오늘로 이동</button>
+              </div>
+              <div class="calendar-agenda-list" id="calendarAgendaList"></div>
+            </div>
+          </div>
         </section>
       </section>
     </main>
